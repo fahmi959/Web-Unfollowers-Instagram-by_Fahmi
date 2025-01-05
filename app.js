@@ -18,14 +18,8 @@ app.use('/api/v1/instagram', instagramRoutes);
 
 // Atur route untuk file HTML utama
 app.get('/', (req, res) => {
-    console.log('Menerima request GET di /');
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
-app.use(cors({
-    origin: 'https://web-unfollowers-instagram-by-fahmi.vercel.app'  // Pastikan ini sesuai dengan URL aplikasi Anda di Vercel
-}));
-
 
 // Memulai server pada port 3000
 app.listen(3000, () => {
