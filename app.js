@@ -18,6 +18,7 @@ app.use('/api/v1/instagram', instagramRoutes);
 
 // Atur route untuk file HTML utama
 app.get('/', (req, res) => {
+    console.log('Menerima request GET di /');
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
