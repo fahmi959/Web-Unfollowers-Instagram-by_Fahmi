@@ -22,6 +22,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.use(cors({
+    origin: 'https://web-unfollowers-instagram-by-fahmi.vercel.app'  // Pastikan ini sesuai dengan URL aplikasi Anda di Vercel
+}));
+
+
 // Memulai server pada port 3000
 app.listen(3000, () => {
     console.log('Server running on http://localhost:3000');
