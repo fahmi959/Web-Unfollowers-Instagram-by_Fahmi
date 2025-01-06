@@ -1,4 +1,5 @@
 const { IgApiClient } = require('instagram-private-api');
+const axios = require('axios');
 const { db } = require('./config/firebaseConfig');
 const ig = new IgApiClient();
 
@@ -46,33 +47,33 @@ const forceLogin = async () => {
 // Fungsi untuk mendapatkan data followers dengan paginasi yang terbatas
 const getAllFollowers = async (userId) => {
     let followers = [];
-    let after = null;
-    let hasNext = true;
+    let followersFeed = ig.feed.accountFollowers(userId);
+    let nextFollowers = await followersFeed.items();
+    followers = followers.concat(nextFollowers);
 
-    while (hasNext) {
-        const followersFeed = await ig.feed.accountFollowers(userId, 50, after).items();
-        followers = followers.concat(followersFeed);
-        hasNext = followersFeed.length === 50;
-        after = hasNext ? followersFeed[followersFeed.length - 1].pk : null;
+    // Batasi jumlah followers untuk menghindari timeout
+    const maxFollowers = 50; // Misalnya hanya ambil 50 followers pertama
+    while (followersFeed.isMoreAvailable() && followers.length < maxFollowers) {
+        nextFollowers = await followersFeed.items();
+        followers = followers.concat(nextFollowers);
     }
-
-    return followers.map(f => f.username);
+    return followers.slice(0, maxFollowers); // Kembali dengan jumlah maksimal
 };
 
 // Fungsi untuk mendapatkan data following dengan paginasi yang terbatas
 const getAllFollowing = async (userId) => {
     let following = [];
-    let after = null;
-    let hasNext = true;
+    let followingFeed = ig.feed.accountFollowing(userId);
+    let nextFollowing = await followingFeed.items();
+    following = following.concat(nextFollowing);
 
-    while (hasNext) {
-        const followingFeed = await ig.feed.accountFollowing(userId, 50, after).items();
-        following = following.concat(followingFeed);
-        hasNext = followingFeed.length === 50;
-        after = hasNext ? followingFeed[followingFeed.length - 1].pk : null;
+    // Batasi jumlah following untuk menghindari timeout
+    const maxFollowing = 50; // Misalnya hanya ambil 50 following pertama
+    while (followingFeed.isMoreAvailable() && following.length < maxFollowing) {
+        nextFollowing = await followingFeed.items();
+        following = following.concat(nextFollowing);
     }
-
-    return following.map(f => f.username);
+    return following.slice(0, maxFollowing); // Kembali dengan jumlah maksimal
 };
 
 // Fungsi untuk menangani request profile Instagram
@@ -90,17 +91,20 @@ exports.handler = async function(event, context) {
             const profilePicUrl = user.profile_pic_url;
 
             // Ambil data followers dan following secara paralel dengan batasan jumlah
-            const [followers, following] = await Promise.all([ 
+            const [followers, following] = await Promise.all([
                 getAllFollowers(user.pk),
                 getAllFollowing(user.pk)
             ]);
 
-            // Menentukan siapa yang tidak follow back
-            const followersSet = new Set(followers);
-            const followingSet = new Set(following);
+            const followersUsernames = followers.map(f => f.username);
+            const followingUsernames = following.map(f => f.username);
 
-            const dontFollowBack = [...followingSet].filter(followingUsername => !followersSet.has(followingUsername));
-            const iDontFollowBack = [...followersSet].filter(followerUsername => !followingSet.has(followerUsername));
+            // Mengonversi followersUsernames dan followingUsernames ke Set untuk pencarian cepat
+            const followersSet = new Set(followersUsernames);
+            const followingSet = new Set(followingUsernames);
+
+            // Menggunakan filter untuk mencari orang yang tidak follow back
+            const dontFollowBack = Array.from(followingSet).filter(following => !followersSet.has(following));
 
             // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
             await db.ref('users').child(user.pk).set({
@@ -110,7 +114,6 @@ exports.handler = async function(event, context) {
                 following_count: followingCount,
                 profile_picture_url: profilePicUrl,
                 dont_follow_back_count: dontFollowBack.length,
-                i_dont_follow_back_count: iDontFollowBack.length,
             });
 
             return {
@@ -124,8 +127,6 @@ exports.handler = async function(event, context) {
                     profile_picture_url: profilePicUrl,
                     dont_follow_back: dontFollowBack,
                     dont_follow_back_count: dontFollowBack.length,
-                    i_dont_follow_back: iDontFollowBack,
-                    i_dont_follow_back_count: iDontFollowBack.length,
                 }),
             };
         } catch (error) {
