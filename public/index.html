@@ -240,7 +240,7 @@
         console.log("Mengirimkan data login ke backend...");
         try {
             // Mengirimkan data login ke backend
-            const loginResponse = await fetch('/api/v1/instagram/login', {
+  const loginResponse = await fetch('/.netlify/functions/instagram/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -256,7 +256,7 @@
                 startLoginProgress();  // Mulai progress bar setelah login
                 
                 // Setelah login berhasil, ambil data profil Instagram
-                const profileResponse = await fetch('/.netlify/functions/instagram/profile');
+                       const response = await fetch('/.netlify/functions/instagram/profile');
                 const profileData = await profileResponse.json();
                 console.log("Profile response:", profileData); // Menampilkan hasil profil
                 
