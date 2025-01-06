@@ -113,15 +113,15 @@ exports.handler = async function(event, context) {
 
             // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
          //   await db.ref('users').child(user.pk).set({
-                username: user.username,
-                full_name: user.full_name,
+              //  username: user.username,
+              //  full_name: user.full_name,
 
-                followers_count: followersCount,
-                following_count: followingCount,
-                profile_picture_url: profilePicUrl, // Simpan hanya URL gambar
+              //  followers_count: followersCount,
+             //   following_count: followingCount,
+               // profile_picture_url: profilePicUrl, // Simpan hanya URL gambar
     
-                dont_follow_back_count: dontFollowBack.length,
-            });
+            //    dont_follow_back_count: dontFollowBack.length,
+        //    });
 
             return {
                 statusCode: 200,
