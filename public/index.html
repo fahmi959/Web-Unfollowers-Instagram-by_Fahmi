@@ -232,41 +232,39 @@
         }
 
         // Event listener untuk tombol login
-document.getElementById('login-button').addEventListener('click', async () => {
-    const username = document.getElementById('username-input').value;
-    const password = document.getElementById('password-input').value;
+        document.getElementById('login-button').addEventListener('click', async () => {
+            const username = document.getElementById('username-input').value;
+            const password = document.getElementById('password-input').value;
 
-    if (username && password) {
-        console.log("Mengirimkan data login ke backend...");
-        try {
-            const response = await fetch('/api/v1/instagram/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password })
-            });
+            if (username && password) {
+                console.log("Mengirimkan data login ke backend...");
+                try {
+                    const response = await fetch('/api/v1/instagram/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
 
-            console.log("Response status:", response.status); // Status HTTP
-            const result = await response.json();
-            console.log("Response body:", result); // Isi respons
+                    console.log("Response status:", response.status); // Status HTTP
+                    const result = await response.json();
+                    console.log("Response body:", result); // Isi respons
 
-            if (response.ok) {
-                console.log('Login berhasil!', result);
-                startLoginProgress();  // Mulai progress bar setelah login
+                    if (response.ok) {
+                        console.log('Login berhasil!', result);
+                        startLoginProgress();  // Mulai progress bar setelah login
+                    } else {
+                        alert(result.message || 'Login gagal. Periksa kredensial Anda dan coba lagi.');
+                    }
+                } catch (error) {
+                    console.error("Terjadi kesalahan saat mengirim request:", error);
+                    alert("Terjadi kesalahan saat mencoba login. Coba lagi.");
+                }
             } else {
-                alert(result.message || 'Login gagal. Periksa kredensial Anda dan coba lagi.');
+                alert('Harap masukkan username dan password');
             }
-        } catch (error) {
-            console.error("Terjadi kesalahan saat mengirim request:", error);
-            alert("Terjadi kesalahan saat mencoba login. Coba lagi.");
-        }
-    } else {
-        alert('Harap masukkan username dan password');
-    }
-});
-
-
+        });
     </script>
 </body>
 </html>
