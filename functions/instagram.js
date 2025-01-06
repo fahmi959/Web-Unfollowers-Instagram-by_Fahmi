@@ -54,16 +54,21 @@ const getFollowersUsernames = async (userId) => {
     while (followersFeed.isMoreAvailable()) {
         try {
             let nextFollowers = await followersFeed.items();
-            followersUsernames = followersUsernames.concat(nextFollowers.map(f => f.username));
-            // Mengatur delay acak antara 15 - 30 detik
-            const delayTime = Math.random() * (30000 - 15000) + 15000;
-            console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
-            await delay(delayTime);
+            if (nextFollowers && nextFollowers.length > 0) {
+                followersUsernames = followersUsernames.concat(nextFollowers.map(f => f.username));
+                // Mengatur delay acak antara 15 - 30 detik
+                const delayTime = Math.random() * (30000 - 15000) + 15000;
+                console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
+                await delay(delayTime);
+            } else {
+                break;
+            }
         } catch (error) {
             console.error('Error fetching followers:', error);
             throw new Error('Failed to fetch followers.');
         }
     }
+    console.log(`Jumlah followers: ${followersUsernames.length}`);
     return followersUsernames;
 };
 
@@ -75,16 +80,21 @@ const getFollowingUsernames = async (userId) => {
     while (followingFeed.isMoreAvailable()) {
         try {
             let nextFollowing = await followingFeed.items();
-            followingUsernames = followingUsernames.concat(nextFollowing.map(f => f.username));
-            // Mengatur delay acak antara 15 - 30 detik
-            const delayTime = Math.random() * (30000 - 15000) + 15000;
-            console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
-            await delay(delayTime);
+            if (nextFollowing && nextFollowing.length > 0) {
+                followingUsernames = followingUsernames.concat(nextFollowing.map(f => f.username));
+                // Mengatur delay acak antara 15 - 30 detik
+                const delayTime = Math.random() * (30000 - 15000) + 15000;
+                console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
+                await delay(delayTime);
+            } else {
+                break;
+            }
         } catch (error) {
             console.error('Error fetching following:', error);
             throw new Error('Failed to fetch following.');
         }
     }
+    console.log(`Jumlah following: ${followingUsernames.length}`);
     return followingUsernames;
 };
 
@@ -97,6 +107,15 @@ exports.handler = async function(event, context) {
 
             const followersUsernames = await getFollowersUsernames(user.pk);
             const followingUsernames = await getFollowingUsernames(user.pk);
+
+            // Jika followers atau following kosong, log kesalahan
+            if (followersUsernames.length === 0 || followingUsernames.length === 0) {
+                console.error('Data followers atau following kosong.');
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({ message: 'Data followers atau following tidak ditemukan.' }),
+                };
+            }
 
             // Cari orang yang tidak follow back
             const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
