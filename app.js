@@ -24,34 +24,22 @@ app.get('/', (req, res) => {
 // Endpoint untuk login
 app.post('/api/v1/instagram/login', async (req, res) => {
     const { username, password } = req.body;
-
-    console.log('Request login diterima:', username, password);
+    console.log("Request diterima: ", username, password);
 
     try {
-        const ref = admin.database().ref('users');
-        const snapshot = await ref.orderByChild('username').equalTo(username).once('value');
+        // Menangani login menggunakan instagram-private-api
+        const instagram = new InstagramPrivateApi.IgApiClient();
+        await instagram.state.generateDevice(username);
+        await instagram.account.login(username, password);
         
-        if (snapshot.exists()) {
-            const userData = snapshot.val();
-            const user = Object.values(userData)[0]; // Ambil data user pertama yang ditemukan
-
-            // Memeriksa password
-            if (user.password === password) {
-                console.log("Login berhasil, user ditemukan");
-                return res.status(200).json({ message: 'Login sukses' });
-            } else {
-                console.log("Password salah");
-                return res.status(401).json({ message: 'Password salah' });
-            }
-        } else {
-            console.log("Username tidak ditemukan");
-            return res.status(404).json({ message: 'Username tidak ditemukan' });
-        }
+        // Jika login berhasil
+        res.status(200).json({ message: 'Login berhasil' });
     } catch (error) {
         console.error('Login error:', error);
-        return res.status(500).json({ message: 'Terjadi kesalahan saat login' });
+        res.status(500).json({ message: 'Login gagal. Terjadi kesalahan di server.' });
     }
 });
+
 
 
 // Memulai server pada port 3000
