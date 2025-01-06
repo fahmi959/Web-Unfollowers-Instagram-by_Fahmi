@@ -46,7 +46,7 @@ const forceLogin = async () => {
 // Fungsi delay dinamis untuk menghindari spam
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fungsi untuk mengambil data followers dalam batch 5 orang
+// Fungsi untuk mengambil data followers dalam batch
 const getFollowersUsernames = async (userId, retries = 3) => {
     let followersUsernames = [];
     let followersFeed = ig.feed.accountFollowers(userId);
@@ -57,7 +57,8 @@ const getFollowersUsernames = async (userId, retries = 3) => {
             let nextFollowers = await followersFeed.items();
             followersUsernames = followersUsernames.concat(nextFollowers.map(f => f.username));
             attempt = 0;
-            const delayTime = Math.random() * (35000 - 10000) + 10000;
+            // Mengatur delay acak antara 15 - 30 detik
+            const delayTime = Math.random() * (30000 - 15000) + 15000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
         } catch (error) {
@@ -74,7 +75,7 @@ const getFollowersUsernames = async (userId, retries = 3) => {
     return followersUsernames;
 };
 
-// Fungsi untuk mengambil data following dalam batch 5 orang
+// Fungsi untuk mengambil data following dalam batch
 const getFollowingUsernames = async (userId, retries = 3) => {
     let followingUsernames = [];
     let followingFeed = ig.feed.accountFollowing(userId);
@@ -85,7 +86,8 @@ const getFollowingUsernames = async (userId, retries = 3) => {
             let nextFollowing = await followingFeed.items();
             followingUsernames = followingUsernames.concat(nextFollowing.map(f => f.username));
             attempt = 0;
-            const delayTime = Math.random() * (35000 - 10000) + 10000;
+            // Mengatur delay acak antara 15 - 30 detik
+            const delayTime = Math.random() * (30000 - 15000) + 15000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
         } catch (error) {
