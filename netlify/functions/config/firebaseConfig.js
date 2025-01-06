@@ -1,6 +1,5 @@
 const admin = require('firebase-admin');
 
-// Menggunakan variabel lingkungan yang sudah diatur di Vercel
 const serviceAccount = {
   type: 'service_account',
   project_id: process.env.FIREBASE_PROJECT_ID,
@@ -14,13 +13,10 @@ const serviceAccount = {
   client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
 };
 
-// Inisialisasi Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: process.env.FIREBASE_DATABASE_URL
 });
 
-// Mendapatkan referensi ke Firebase Realtime Database
 const db = admin.database();
-
-module.exports = db;
+module.exports = { db };
