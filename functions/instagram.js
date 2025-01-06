@@ -112,11 +112,11 @@ exports.handler = async function(event, context) {
             await db.ref('users').child(user.pk).set({
                 username: user.username,
                 full_name: user.full_name,
-                biography: user.biography,
+
                 followers_count: followersCount,
                 following_count: followingCount,
                 profile_picture_url: profilePicUrl, // Simpan hanya URL gambar
-                dont_follow_back: dontFollowBack,
+    
                 dont_follow_back_count: dontFollowBack.length,
             });
 
