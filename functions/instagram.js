@@ -6,6 +6,10 @@ const ig = new IgApiClient();
 // Variabel sesi yang disimpan dalam Firebase
 let sessionData = null;
 
+// Fungsi untuk menambahkan delay acak
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const randomDelay = () => sleep(Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000);  // Random delay between 1 and 5 seconds
+
 // Fungsi untuk login ke Instagram
 const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
@@ -53,6 +57,7 @@ const getAllFollowers = async (userId) => {
     do {
         let nextFollowers = await followersFeed.items();
         followers = followers.concat(nextFollowers);
+        await randomDelay();  // Delay acak antar permintaan
     } while (followersFeed.isMoreAvailable());
 
     return followers; // Kembali dengan seluruh followers
@@ -67,6 +72,7 @@ const getAllFollowing = async (userId) => {
     do {
         let nextFollowing = await followingFeed.items();
         following = following.concat(nextFollowing);
+        await randomDelay();  // Delay acak antar permintaan
     } while (followingFeed.isMoreAvailable());
 
     return following; // Kembali dengan seluruh following
