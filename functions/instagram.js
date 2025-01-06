@@ -1,4 +1,6 @@
 const { IgApiClient } = require('instagram-private-api');
+const axios = require('axios');
+const path = require('path');
 const { db } = require('./config/firebaseConfig');
 const ig = new IgApiClient();
 
@@ -44,19 +46,18 @@ const forceLogin = async () => {
 // Fungsi delay dinamis untuk menghindari spam
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fungsi untuk mengambil data followers dalam batch kecil
-const getFollowersBatch = async (userId, maxFollowers = 100, retries = 3) => {
-    let followers = [];
+// Fungsi untuk mengambil data followers dalam batch 5 orang
+const getFollowersUsernames = async (userId, retries = 3) => {
+    let followersUsernames = [];
     let followersFeed = ig.feed.accountFollowers(userId);
     let attempt = 0;
 
-    while (followers.length < maxFollowers && followersFeed.isMoreAvailable()) {
+    while (followersFeed.isMoreAvailable()) {
         try {
             let nextFollowers = await followersFeed.items();
-            followers = followers.concat(nextFollowers);
+            followersUsernames = followersUsernames.concat(nextFollowers.map(f => f.username));
             attempt = 0;
-
-            const delayTime = Math.random() * (30000 - 15000) + 15000; // Waktu tunggu acak antara 15-30 detik
+            const delayTime = Math.random() * (35000 - 10000) + 10000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
         } catch (error) {
@@ -64,28 +65,27 @@ const getFollowersBatch = async (userId, maxFollowers = 100, retries = 3) => {
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000); // Waktu tunggu ulang 5 detik saat gagal
+                await delay(5000);
             } else {
                 throw new Error('Failed to fetch followers after multiple retries.');
             }
         }
     }
-    return followers;
+    return followersUsernames;
 };
 
-// Fungsi untuk mengambil data following dalam batch kecil
-const getFollowingBatch = async (userId, maxFollowing = 100, retries = 3) => {
-    let following = [];
+// Fungsi untuk mengambil data following dalam batch 5 orang
+const getFollowingUsernames = async (userId, retries = 3) => {
+    let followingUsernames = [];
     let followingFeed = ig.feed.accountFollowing(userId);
     let attempt = 0;
 
-    while (following.length < maxFollowing && followingFeed.isMoreAvailable()) {
+    while (followingFeed.isMoreAvailable()) {
         try {
             let nextFollowing = await followingFeed.items();
-            following = following.concat(nextFollowing);
+            followingUsernames = followingUsernames.concat(nextFollowing.map(f => f.username));
             attempt = 0;
-
-            const delayTime = Math.random() * (30000 - 15000) + 15000; // Waktu tunggu acak antara 15-30 detik
+            const delayTime = Math.random() * (35000 - 10000) + 10000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
         } catch (error) {
@@ -93,49 +93,34 @@ const getFollowingBatch = async (userId, maxFollowing = 100, retries = 3) => {
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000); // Waktu tunggu ulang 5 detik saat gagal
+                await delay(5000); 
             } else {
                 throw new Error('Failed to fetch following after multiple retries.');
             }
         }
     }
-    return following;
+    return followingUsernames;
 };
 
-// Fungsi untuk mencari orang yang tidak follow back (dengan cara lebih efisien)
-const getDontFollowBack = async (userId) => {
-    try {
-        const followers = await getFollowersBatch(userId, 100);  // Ambil 100 followers pertama
-        const following = await getFollowingBatch(userId, 100);  // Ambil 100 following pertama
-
-        const followersUsernames = new Set(followers.map(f => f.username));
-        const followingUsernames = new Set(following.map(f => f.username));
-
-        // Cari orang yang tidak follow back dengan menghindari mengambil seluruh data
-        const dontFollowBack = Array.from(followingUsernames).filter(username => !followersUsernames.has(username));
-
-        return dontFollowBack;
-    } catch (error) {
-        console.error('Error in fetching dont follow back:', error);
-        throw error;
-    }
-};
-
-// Fungsi utama untuk menangani permintaan profile Instagram dengan optimasi
+// Fungsi untuk menangani permintaan profile Instagram
 exports.handler = async function(event, context) {
     if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/instagram/profile') {
         try {
             await login();
             const user = await ig.account.currentUser();
 
-            const dontFollowBack = await getDontFollowBack(user.pk);
+            const followersUsernames = await getFollowersUsernames(user.pk);
+            const followingUsernames = await getFollowingUsernames(user.pk);
+
+            // Cari orang yang tidak follow back
+            const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
 
             // Menyimpan data pengguna ke Firebase
             await db.ref('users').child(user.pk).set({
                 username: user.username,
                 full_name: user.full_name,
-                followers_count: user.follower_count,
-                following_count: user.following_count,
+                followers_count: followersUsernames.length,
+                following_count: followingUsernames.length,
                 profile_picture_url: user.profile_pic_url,
                 dont_follow_back_count: dontFollowBack.length,
             });
@@ -146,8 +131,8 @@ exports.handler = async function(event, context) {
                     username: user.username,
                     full_name: user.full_name,
                     biography: user.biography,
-                    followers_count: user.follower_count,
-                    following_count: user.following_count,
+                    followers_count: followersUsernames.length,
+                    following_count: followingUsernames.length,
                     profile_picture_url: user.profile_pic_url,
                     dont_follow_back: dontFollowBack,
                     dont_follow_back_count: dontFollowBack.length,
@@ -167,17 +152,7 @@ exports.handler = async function(event, context) {
                 };
             }
         }
-    }
-    // Handle login and other routes
-    return {
-        statusCode: 404,
-        body: JSON.stringify({ message: 'Not Found' }),
-    };
-};
-
-// Fungsi login untuk menangani POST request
-exports.loginHandler = async function(event, context) {
-    if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
+    } else if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
         const { username, password } = JSON.parse(event.body);
 
         try {
@@ -219,6 +194,7 @@ exports.loginHandler = async function(event, context) {
             }
         }
     }
+
     return {
         statusCode: 404,
         body: JSON.stringify({ message: 'Not Found' }),
