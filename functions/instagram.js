@@ -9,6 +9,9 @@ const ig = new IgApiClient();
 // Variabel sesi yang disimpan dalam Firebase
 let sessionData = null;
 
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+
 // Fungsi untuk login ke Instagram
 const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
