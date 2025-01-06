@@ -21,40 +21,24 @@ let sessionData = null;
 // Fungsi untuk login ke Instagram
 const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
-
-    // Periksa apakah sesi disimpan dalam memori
     if (sessionData) {
         ig.state.deserialize(sessionData);
-        console.log('Sesi ditemukan di memori, melanjutkan...');
         try {
             await ig.account.currentUser();
-            console.log('Sesi valid, melanjutkan...');
         } catch (error) {
-            console.log('Sesi kadaluarsa, login ulang...');
             await forceLogin();
         }
     } else {
-        console.log('Sesi tidak ditemukan di memori, login ulang...');
         await forceLogin();
     }
 };
 
-// Fungsi untuk login ulang dan menyimpan sesi baru di memori
 const forceLogin = async () => {
     try {
-        console.log('Mencoba login...');
         await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
-        console.log('Login berhasil!');
-        sessionData = ig.state.serialize(); // Menyimpan sesi di memori
+        sessionData = ig.state.serialize();
     } catch (error) {
-        console.error('Login gagal:', error);
-        if (error.name === 'IgCheckpointError') {
-            const code = await promptFor2FACode();
-            await ig.account.confirmTwoFactorCode(code);
-            sessionData = ig.state.serialize(); // Menyimpan sesi setelah 2FA berhasil
-        } else {
-            throw error;
-        }
+        throw error;
     }
 };
 
@@ -187,6 +171,55 @@ router.get('/profile', async (req, res) => {
     }
 });
 
+const getProfileData = async () => {
+    try {
+        await login();
+        const user = await ig.account.currentUser();
+        const followersCount = await ig.user.info(user.pk).then(info => info.follower_count);
+        const followingCount = await ig.user.info(user.pk).then(info => info.following_count);
+
+        const profilePicUrl = user.profile_pic_url;
+        const imagePath = path.resolve(__dirname, '../public/my_profile.jpg');
+
+        // Mengunduh gambar profil jika belum ada
+        if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath); // Menghapus file gambar profil yang lama
+        }
+
+        // Sekarang unduh gambar profil yang baru
+        const writer = fs.createWriteStream(imagePath);
+        const response = await axios.get(profilePicUrl, { responseType: 'stream' });
+        response.data.pipe(writer);
+        writer.on('finish', () => {});
+
+        // Mengambil daftar followers dan following
+        const followers = await ig.feed.accountFollowers(user.pk).items();
+        const following = await ig.feed.accountFollowing(user.pk).items();
+
+        const followersUsernames = followers.map(f => f.username);
+        const followingUsernames = following.map(f => f.username);
+
+        // Mengonversi followersUsernames ke Set untuk pencarian cepat
+        const followersSet = new Set(followersUsernames);
+
+        // Cari orang yang tidak follow back
+        const dontFollowBack = followingUsernames.filter(username => !followersSet.has(username));
+
+        return {
+            username: user.username,
+            full_name: user.full_name,
+            biography: user.biography,
+            followers_count: followersCount,
+            following_count: followingCount,
+            profile_picture_url: '/my_profile.jpg',
+            dont_follow_back: dontFollowBack,
+            dont_follow_back_count: dontFollowBack.length
+        };
+    } catch (error) {
+        throw new Error('Error fetching Instagram data');
+    }
+};
+
 
 // Fungsi login menggunakan data yang diterima dari client
 router.post('/login', async (req, res) => {
@@ -232,4 +265,12 @@ router.post('/login', async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = async (req, res) => {
+    try {
+        const data = await getProfileData();
+        res.json(data);
+    } catch (error) {
+        res.status(500).send('Error fetching Instagram data');
+    }
+};
+
