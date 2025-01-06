@@ -1,82 +1,75 @@
 const { IgApiClient } = require('instagram-private-api');
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-
+const express = require('express');
+const router = express.Router();
 const ig = new IgApiClient();
+
+// Waktu pengaturan
 let sessionData = null;
 
-// Waktu penundaan
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Fungsi untuk login ke Instagram
+const login = async (username, password) => {
+    ig.state.generateDevice(username);
 
-const login = async () => {
-  ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
-  if (sessionData) {
-    ig.state.deserialize(sessionData);
-    try {
-      await ig.account.currentUser();
-    } catch (error) {
-      await forceLogin();
+    if (sessionData) {
+        ig.state.deserialize(sessionData);
+        try {
+            await ig.account.currentUser();
+        } catch (error) {
+            await forceLogin(username, password);
+        }
+    } else {
+        await forceLogin(username, password);
     }
-  } else {
-    await forceLogin();
-  }
 };
 
-const forceLogin = async () => {
-  try {
-    await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
-    sessionData = ig.state.serialize();
-  } catch (error) {
-    throw error;
-  }
+// Fungsi untuk login ulang dan menyimpan sesi baru di memori
+const forceLogin = async (username, password) => {
+    try {
+        await ig.account.login(username, password);
+        sessionData = ig.state.serialize();
+    } catch (error) {
+        if (error.name === 'IgCheckpointError') {
+            throw new Error('Instagram needs 2FA');
+        } else {
+            throw error;
+        }
+    }
 };
 
-const getProfileData = async () => {
-  try {
-    await login();
-    const user = await ig.account.currentUser();
-    const followersCount = await ig.user.info(user.pk).then(info => info.follower_count);
-    const followingCount = await ig.user.info(user.pk).then(info => info.following_count);
+// Endpoint untuk login
+router.post('/login', async (req, res) => {
+    const { username, password } = req.body;
 
-    const profilePicUrl = user.profile_pic_url;
-    const imagePath = path.resolve(__dirname, '../public/my_profile.jpg');
+    try {
+        await login(username, password);
+        res.json({ message: 'Login berhasil!' });
+    } catch (error) {
+        res.status(400).json({ message: 'Login gagal: ' + error.message });
+    }
+});
 
-    // Mengunduh gambar profil
-    const writer = fs.createWriteStream(imagePath);
-    const response = await axios.get(profilePicUrl, { responseType: 'stream' });
-    response.data.pipe(writer);
+// Endpoint untuk mengambil profil Instagram
+router.get('/profile', async (req, res) => {
+    try {
+        const user = await ig.account.currentUser();
+        const followers = await ig.feed.accountFollowers(user.pk).items();
+        const following = await ig.feed.accountFollowing(user.pk).items();
 
-    // Mengambil daftar followers dan following
-    const followers = await ig.feed.accountFollowers(user.pk).items();
-    const following = await ig.feed.accountFollowing(user.pk).items();
+        const dontFollowBack = following.filter(f => !followers.find(follower => follower.username === f.username));
 
-    const followersUsernames = followers.map(f => f.username);
-    const followingUsernames = following.map(f => f.username);
+        res.json({
+            username: user.username,
+            full_name: user.full_name,
+            biography: user.biography,
+            followers_count: user.follower_count,
+            following_count: user.following_count,
+            profile_picture_url: user.profile_pic_url,
+            dont_follow_back_count: dontFollowBack.length,
+            dont_follow_back: dontFollowBack.map(f => f.username),
+        });
+    } catch (error) {
+        res.status(400).json({ message: 'Error fetching profile: ' + error.message });
+    }
+});
 
-    const followersSet = new Set(followersUsernames);
-    const dontFollowBack = followingUsernames.filter(username => !followersSet.has(username));
-
-    return {
-      username: user.username,
-      full_name: user.full_name,
-      biography: user.biography,
-      followers_count: followersCount,
-      following_count: followingCount,
-      profile_picture_url: '/my_profile.jpg',
-      dont_follow_back: dontFollowBack,
-      dont_follow_back_count: dontFollowBack.length,
-    };
-  } catch (error) {
-    throw new Error('Error fetching Instagram data');
-  }
-};
-
-module.exports = async (req, res) => {
-  try {
-    const data = await getProfileData();
-    res.json(data);
-  } catch (error) {
-    res.status(500).send('Error fetching Instagram data');
-  }
-};
+module.exports = router;
