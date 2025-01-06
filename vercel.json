@@ -12,7 +12,7 @@
   ],
   "routes": [
     {
-      "src": "/routes/api/v1/instagram",
+      "src": "/api/v1/instagram",
       "dest": "/api/routes/instagram.js"
     },
     {
