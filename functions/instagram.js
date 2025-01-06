@@ -171,6 +171,8 @@ exports.handler = async function(event, context) {
             };
         } catch (error) {
             console.error('Login gagal:', error);
+            
+            // Tangani error login dengan lebih rinci
             if (error.name === 'IgLoginRequiredError') {
                 return {
                     statusCode: 401,
@@ -182,6 +184,8 @@ exports.handler = async function(event, context) {
                     body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
                 };
             } else {
+                // Tambahkan delay antar percobaan login jika gagal
+                await sleep(5000); // Delay 5 detik
                 return {
                     statusCode: 500,
                     body: JSON.stringify({ message: 'Login failed, please try again later.' }),
