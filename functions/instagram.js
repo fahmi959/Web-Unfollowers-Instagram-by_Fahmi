@@ -8,7 +8,11 @@ let sessionData = null;
 // Fungsi untuk menambahkan delay acak
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fungsi untuk 
+// Fungsi untuk penanganan delay dengan exponential backoff
+const exponentialBackoff = (retries) => sleep(Math.pow(2, retries) * 3000);  // Exponential backoff (2^retries * 3000ms)
+
+// Fungsi untuk login ke Instagram
+const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
 
     if (sessionData) {
