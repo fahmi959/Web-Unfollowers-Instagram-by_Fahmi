@@ -21,6 +21,34 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Endpoint untuk login
+app.post('/api/v1/instagram/login', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        // Memeriksa apakah username dan password cocok di Firebase
+        const ref = admin.database().ref('users');
+        const snapshot = await ref.orderByChild('username').equalTo(username).once('value');
+        
+        if (snapshot.exists()) {
+            const userData = snapshot.val();
+            const user = Object.values(userData)[0]; // Ambil data user pertama yang ditemukan
+
+            // Memeriksa password
+            if (user.password === password) {
+                // Sesi login berhasil, kirimkan response
+                return res.status(200).json({ message: 'Login sukses' });
+            } else {
+                return res.status(401).json({ message: 'Password salah' });
+            }
+        } else {
+            return res.status(404).json({ message: 'Username tidak ditemukan' });
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        return res.status(500).json({ message: 'Terjadi kesalahan saat login' });
+    }
+});
+
 // Memulai server pada port 3000
 app.listen(3000, () => {
     console.log('Server running on http://localhost:3000');
