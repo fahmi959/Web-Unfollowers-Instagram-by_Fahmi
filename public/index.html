@@ -155,7 +155,10 @@
         <div id="login-form">
             <h2>Login to Instagram</h2>
             <input type="text" id="username-input" placeholder="Instagram Username" required />
-            <input type="password" id="password-input" placeholder="Instagram Password" required />
+            <div class="password-input-container">
+                <input type="password" id="password-input" placeholder="Instagram Password" required />
+                <button type="button" id="toggle-password" class="toggle-password">👁️</button>
+            </div>
             <button class="button" id="login-button">Login to Instagram</button>
         </div>
     </div>
@@ -266,6 +269,15 @@
             }
         });
 
+        // Toggle password visibility
+        document.getElementById('toggle-password').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password-input');
+            const passwordType = passwordInput.type === 'password' ? 'text' : 'password';
+            passwordInput.type = passwordType;
+            this.textContent = passwordType === 'password' ? '👁️' : '🙈'; // Mengubah ikon
+        });
+
     </script>
 </body>
+
 </html>
