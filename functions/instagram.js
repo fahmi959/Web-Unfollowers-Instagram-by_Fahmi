@@ -175,7 +175,7 @@ const dontFollowBackCount = dontFollowBack.length; // Ambil don't follow back co
     userId,
     timestamp: new Date().toISOString(),
     followersCount,
-    followeingCount,
+    followingCount,
     full_name,
     dont_follow_back_count,
     profile_picture_url: user.profile_pic_url,
