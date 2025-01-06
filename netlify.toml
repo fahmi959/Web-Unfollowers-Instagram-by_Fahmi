@@ -1,6 +1,7 @@
 [build]
   publish = "public"
   functions = "functions"
-
+[functions]
+  timeout = 30 # Timeout increased to 30 seconds
 [build.environment]
   NODE_VERSION = "14"
