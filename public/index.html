@@ -4,140 +4,123 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instagram Profile</title>
-  <style>
-    /* Basic styling for the page */
-    body {
-        font-family: 'Roboto', sans-serif;
-        background-color: #f4f4f9;
-        margin: 0;
-        padding: 0;
-        color: #333;
-    }
-
-    .container {
-        width: 100%;
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 20px;
-        background-color: white;
-        border-radius: 15px;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        margin-top: 30px;
-    }
-
-    .profile-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 20px;
-        animation: fadeIn 1s ease-in-out;
-    }
-
-    .profile-picture {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid #0095f6;
-        margin-right: 20px;
-        transition: transform 0.3s ease-in-out;
-    }
-
-    .profile-info h1 {
-        font-size: 2rem;
-        font-weight: 600;
-        margin: 0;
-    }
-
-    .profile-info p {
-        color: #777;
-        font-size: 1.1rem;
-    }
-
-    .stats {
-        display: flex;
-        justify-content: space-around;
-        margin-top: 30px;
-        padding: 20px;
-        background-color: #f9f9f9;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-        animation: slideIn 1s ease-out;
-    }
-
-    .stats div {
-        text-align: center;
-    }
-
-    .stats h2 {
-        font-size: 2rem;
-        color: #0095f6;
-        font-weight: 600;
-        margin: 0;
-    }
-
-    .stats p {
-        color: #777;
-        font-size: 1rem;
-    }
-
-    .button {
-        width: 100%;
-        padding: 15px;
-        background-color: #0095f6;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 1.2rem;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        margin-top: 30px;
-        animation: fadeIn 1.5s ease-in-out;
-    }
-
-    .button:hover {
-        background-color: #007bb5;
-    }
-
-    /* Animations */
-    @keyframes fadeIn {
-        0% {
-            opacity: 0;
+    <style>
+        /* Basic styling for the page */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            color: #333;
         }
-        100% {
-            opacity: 1;
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-top: 30px;
         }
-    }
 
-    @keyframes slideIn {
-        0% {
-            transform: translateY(50px);
-            opacity: 0;
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            animation: fadeIn 1s ease-in-out;
         }
-        100% {
-            transform: translateY(0);
-            opacity: 1;
+
+        .profile-picture {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #0095f6;
+            margin-right: 20px;
+            transition: transform 0.3s ease-in-out;
         }
-    }
 
-    /* Styling for the progress bar */
-    progress {
-        width: 100%;
-        height: 50px; /* Tinggi lebih besar */
-        margin-top: 20px;  /* Memberikan jarak dari elemen sebelumnya */
-        margin-bottom: 20px; /* Memberikan jarak ke bawah */
-    }
+        .profile-info h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin: 0;
+        }
 
-    #progress-percentage {
-        font-weight: bold;
-        font-size: 1.5rem;
-        text-align: center;
-        margin-top: 10px; /* Memberikan jarak ke atas */
-        margin-bottom: 20px; /* Memberikan jarak ke bawah */
-    }
+        .profile-info p {
+            color: #777;
+            font-size: 1.1rem;
+        }
 
-</style>
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            animation: slideIn 1s ease-out;
+        }
 
+        .stats div {
+            text-align: center;
+        }
+
+        .stats h2 {
+            font-size: 2rem;
+            color: #0095f6;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .stats p {
+            color: #777;
+            font-size: 1rem;
+        }
+
+        .button {
+            width: 100%;
+            padding: 15px;
+            background-color: #0095f6;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 30px;
+            animation: fadeIn 1.5s ease-in-out;
+        }
+
+        .button:hover {
+            background-color: #007bb5;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideIn {
+            0% {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+    </style>
 </head>
 
 
