@@ -1,7 +1,13 @@
 const { IgApiClient } = require('instagram-private-api');
 const ig = new IgApiClient();
-const db = require('./config/firebaseConfig');  // Mengimpor konfigurasi Firebase dari file firebaseConfig.js
+const db = require('./config/firebaseConfig');
 
+// Fungsi penundaan acak
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const randomDelay = () => Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000; // Penundaan antara 1-3 detik
+
+// Fungsi login
 const login = async (username, password) => {
     ig.state.generateDevice(username);
 
@@ -14,8 +20,8 @@ const login = async (username, password) => {
         const sessionTimestamp = storedSessionData.timestamp;
         const currentTime = Date.now();
         
-        // Cek apakah sesi sudah kadaluarsa (5 menit)
-        if (currentTime - sessionTimestamp < 5 * 60 * 1000) {
+        // Cek apakah sesi sudah kadaluarsa (30 menit)
+        if (currentTime - sessionTimestamp < 30 * 60 * 1000) {
             // Sesi masih valid, lanjutkan login
             ig.state.deserialize(storedSessionData.session);
             try {
@@ -33,8 +39,12 @@ const login = async (username, password) => {
     }
 };
 
+// Fungsi forceLogin
 const forceLogin = async (username, password) => {
     try {
+        // Tambahkan penundaan acak sebelum login
+        await delay(randomDelay());
+
         await ig.account.login(username, password);
         const sessionData = ig.state.serialize();
         const currentTime = Date.now(); // Simpan waktu login saat ini
@@ -44,6 +54,8 @@ const forceLogin = async (username, password) => {
             session: sessionData,
             timestamp: currentTime, // Waktu login
         });
+
+        console.log(`Login berhasil untuk ${username}`);
     } catch (error) {
         if (error.name === 'IgCheckpointError') {
             throw new Error('Instagram needs 2FA');
@@ -53,12 +65,13 @@ const forceLogin = async (username, password) => {
     }
 };
 
+// Fungsi logout
 const logout = async (username) => {
-    // Hapus sesi pengguna di Firebase untuk memastikan login ulang
     await db.ref(`sessions/${username}`).remove();
-    // Anda bisa menambahkan kode untuk logout dari Instagram di sini
+    console.log(`Logged out: ${username}`);
 };
 
+// API untuk profile
 module.exports = async (req, res) => {
     const { method, url } = req;
 
@@ -75,8 +88,8 @@ module.exports = async (req, res) => {
     if (method === 'GET' && url === '/api/v1/instagram/profile') {
         try {
             const user = await ig.account.currentUser();
-            const followers = await ig.feed.accountFollowers(user.pk).items();
-            const following = await ig.feed.accountFollowing(user.pk).items();
+            const followers = await fetchFollowers(user);
+            const following = await fetchFollowing(user);
             const dontFollowBack = following.filter(f => !followers.find(follower => follower.username === f.username));
 
             return res.status(200).json({
