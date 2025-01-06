@@ -109,3 +109,4 @@ module.exports = async (req, res) => {
 
     return res.status(404).json({ message: 'Route tidak ditemukan' });
 };
+
