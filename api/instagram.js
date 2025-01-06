@@ -2,7 +2,7 @@ const { IgApiClient } = require('instagram-private-api');
 const ig = new IgApiClient();
 const db = require('./config/firebaseConfig');  // Mengimpor konfigurasi Firebase dari file firebaseConfig.js
 
-// Fungsi untuk mengubah karakter tidak valid dalam username menjadi karakter yang valid di Firebase
+// Fungsi untuk mengganti karakter tidak valid dalam username menjadi karakter yang valid di Firebase
 const sanitizeUsername = (username) => {
     return username.replace(/[.#$[\]]/g, '_');  // Ganti karakter yang tidak valid dengan underscore
 };
