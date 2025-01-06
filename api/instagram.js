@@ -1,14 +1,6 @@
 const { IgApiClient } = require('instagram-private-api');
 const ig = new IgApiClient();
-const admin = require('firebase-admin');
-
-// Inisialisasi Firebase
-admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
-  databaseURL: 'https://your-project-id.firebaseio.com', // Ganti dengan URL database Anda
-});
-
-const db = admin.database();
+const db = require('./config/firebaseConfig');  // Mengimpor konfigurasi Firebase dari file firebaseConfig.js
 
 const login = async (username, password) => {
     ig.state.generateDevice(username);
