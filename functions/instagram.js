@@ -43,7 +43,7 @@ const forceLogin = async () => {
     }
 };
 
-// Fungsi untuk mengambil data followers dalam batch 5 orang
+// Fungsi untuk mengambil data followers dalam batch
 const getAllFollowers = async (userId, retries = 3) => {
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
@@ -57,9 +57,6 @@ const getAllFollowers = async (userId, retries = 3) => {
             const delayTime = Math.random() * (40000 - 10000) + 10000; 
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
-            if (followers.length % 5 === 0) { // Batch setiap 5 followers
-                console.log('Batch selesai, melanjutkan ke batch berikutnya...');
-            }
         } catch (error) {
             console.error('Error fetching followers:', error);
             if (attempt < retries) {
@@ -74,7 +71,7 @@ const getAllFollowers = async (userId, retries = 3) => {
     return followers;
 };
 
-// Fungsi untuk mengambil data following dalam batch 5 orang
+// Fungsi untuk mengambil data following dalam batch
 const getAllFollowing = async (userId, retries = 3) => {
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
@@ -88,9 +85,6 @@ const getAllFollowing = async (userId, retries = 3) => {
             const delayTime = Math.random() * (40000 - 10000) + 10000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
-            if (following.length % 5 === 0) { // Batch setiap 5 following
-                console.log('Batch selesai, melanjutkan ke batch berikutnya...');
-            }
         } catch (error) {
             console.error('Error fetching following:', error);
             if (attempt < retries) {
@@ -114,7 +108,7 @@ const getDontFollowBack = (followersUsernames, followingUsernames) => {
     return dontFollowBack;
 };
 
-// Menangani permintaan untuk mengambil data Instagram
+// Fungsi untuk menangani permintaan profile Instagram
 exports.handler = async function(event, context) {
     if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/instagram/profile') {
         try {
@@ -156,8 +150,8 @@ exports.handler = async function(event, context) {
                     followers_count: followersCount,
                     following_count: followingCount,
                     profile_picture_url: profilePicUrl,
-                    dont_follow_back: dontFollowBack,
-                    dont_follow_back_count: dontFollowBack.length,
+                    dont_follow_back: dontFollowBack,  // Menyertakan list username yang tidak follow back
+                    dont_follow_back_count: dontFollowBack.length,  // Jumlah orang yang tidak follow back
                 }),
             };
         } catch (error) {
