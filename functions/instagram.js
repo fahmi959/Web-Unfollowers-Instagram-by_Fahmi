@@ -164,7 +164,7 @@ exports.handler = async function(event, context) {
 
             const followersCount = user.follower_count; // Tadi belum di definisikan
 const followingCount = user.following_count; 
-const full_name = user.full_name; // Ambil full_name dari user
+const fullName = user.full_name; // Ambil full_name dari user
 const dontFollowBackCount = dontFollowBack.length; // Ambil don't follow back count 
 
             // Simpan ke Firebase Realtime Database
@@ -176,8 +176,8 @@ const dontFollowBackCount = dontFollowBack.length; // Ambil don't follow back co
     timestamp: new Date().toISOString(),
     followersCount,
     followingCount,
-    full_name,
-    dont_follow_back_count,
+    fullName,
+   dontFollowBackCount,
     profile_picture_url: user.profile_pic_url,
 };
 
