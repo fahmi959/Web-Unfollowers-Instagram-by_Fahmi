@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const axios = require('axios');
-const db = require('../config/firebaseConfig');  // Jalur relatif menuju firebaseConfig.js
+const db = require(path.resolve(__dirname, '../config/firebaseConfig'));
+
 
 const ig = new IgApiClient();
 
