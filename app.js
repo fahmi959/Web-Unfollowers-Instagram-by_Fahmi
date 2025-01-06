@@ -24,8 +24,10 @@ app.get('/', (req, res) => {
 // Endpoint untuk login
 app.post('/api/v1/instagram/login', async (req, res) => {
     const { username, password } = req.body;
+
+    console.log('Request login diterima:', username, password);
+
     try {
-        // Memeriksa apakah username dan password cocok di Firebase
         const ref = admin.database().ref('users');
         const snapshot = await ref.orderByChild('username').equalTo(username).once('value');
         
@@ -35,12 +37,14 @@ app.post('/api/v1/instagram/login', async (req, res) => {
 
             // Memeriksa password
             if (user.password === password) {
-                // Sesi login berhasil, kirimkan response
+                console.log("Login berhasil, user ditemukan");
                 return res.status(200).json({ message: 'Login sukses' });
             } else {
+                console.log("Password salah");
                 return res.status(401).json({ message: 'Password salah' });
             }
         } else {
+            console.log("Username tidak ditemukan");
             return res.status(404).json({ message: 'Username tidak ditemukan' });
         }
     } catch (error) {
@@ -48,6 +52,7 @@ app.post('/api/v1/instagram/login', async (req, res) => {
         return res.status(500).json({ message: 'Terjadi kesalahan saat login' });
     }
 });
+
 
 // Memulai server pada port 3000
 app.listen(3000, () => {
