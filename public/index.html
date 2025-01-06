@@ -99,35 +99,6 @@
             background-color: #007bb5;
         }
 
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-top: 30px;
-            color: #333;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            animation: fadeIn 1s ease-in-out;
-        }
-
-        .list {
-            margin-top: 10px;
-            list-style-type: none;
-            padding: 0;
-            font-size: 1.1rem;
-            color: #555;
-        }
-
-        .list li {
-            margin: 10px 0;
-            padding: 8px;
-            border-bottom: 1px solid #eee;
-            transition: background-color 0.3s ease;
-        }
-
-        .list li:hover {
-            background-color: #f0f0f0;
-        }
-
         /* Animations */
         @keyframes fadeIn {
             0% {
@@ -149,59 +120,11 @@
             }
         }
 
-        /* Progress Bar Styling */
-        progress {
-            height: 20px;
-            border-radius: 10px;
-            width: 100%;
-            margin-top: 30px;
-            appearance: none;
-        }
-
-        progress::-webkit-progress-bar {
-            background-color: #e0e0e0;
-            border-radius: 10px;
-        }
-
-        progress::-webkit-progress-value {
-            background-color: #0095f6;
-            border-radius: 10px;
-        }
-
-        /* Responsive Design */
-        @media screen and (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-
-            .profile-header {
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-            }
-
-            .profile-info h1 {
-                font-size: 1.8rem;
-            }
-
-            .stats {
-                flex-direction: column;
-                margin-top: 20px;
-            }
-
-            .stats div {
-                margin-bottom: 20px;
-            }
-
-            .button {
-                padding: 12px;
-                font-size: 1.1rem;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Bagian Profil dan Stats -->
         <div class="profile-header">
             <img id="profile-picture" class="profile-picture" src="" alt="Profile Picture">
             <div class="profile-info">
@@ -228,15 +151,17 @@
         <p id="dont-follow-back-count"></p>
         <ul id="dont-follow-me-back" class="list"></ul>
 
-        <!-- Login Button -->
-        <button class="button" id="login-button">Login to Instagram</button>
+        <!-- Formulir Login -->
+        <div id="login-form">
+            <h2>Login to Instagram</h2>
+            <input type="text" id="username-input" placeholder="Instagram Username" required />
+            <input type="password" id="password-input" placeholder="Instagram Password" required />
+            <button class="button" id="login-button">Login to Instagram</button>
+        </div>
     </div>
 
     <script>
-        let currentPage = 1;  // Track the current page
-        const itemsPerPage = 15;  // Set number of items per page
-
-        // Show the progress bar during login
+        // Fungsi untuk memulai progress bar selama login
         function startLoginProgress() {
             const progressBar = document.getElementById('progress-bar');
             progressBar.style.display = 'block';
@@ -245,27 +170,28 @@
             let progress = 0;
             const progressInterval = setInterval(() => {
                 if (progress < 50) {
-                    progress += 5;  // Increase by 5% each interval
+                    progress += 5;  // Tambah 5% setiap interval
                     progressBar.value = progress;
                 } else {
-                    clearInterval(progressInterval);  // Stop after 50%
-                    // After login completes, continue fetching Instagram data
-                    fetchInstagramData(currentPage);
+                    clearInterval(progressInterval);  // Hentikan setelah 50%
+                    // Setelah login selesai, lanjutkan mengambil data Instagram
+                    fetchInstagramData();
                 }
-            }, 100);  // Update every 100ms
+            }, 100);  // Update setiap 100ms
         }
 
-        async function fetchInstagramData(page = 1) {
+        // Fungsi untuk mengambil data profil Instagram setelah login berhasil
+        async function fetchInstagramData() {
             try {
-                // Show the progress bar
+                // Menampilkan progress bar
                 const progressBar = document.getElementById('progress-bar');
                 progressBar.style.display = 'block';
-                progressBar.value = 50;  // Start from 50% after login
+                progressBar.value = 50;  // Mulai dari 50% setelah login
 
-                const response = await fetch(`/api/v1/instagram/profile?page=${page}&itemsPerPage=${itemsPerPage}`);
+                const response = await fetch('/api/v1/instagram/profile');
                 const data = await response.json();
 
-                // Display profile information
+                // Menampilkan informasi profil
                 document.getElementById('username').innerText = data.username;
                 document.getElementById('full-name').innerText = data.full_name;
                 document.getElementById('biography').innerText = data.biography;
@@ -273,7 +199,7 @@
                 document.getElementById('following-count').innerText = data.following_count;
                 document.getElementById('profile-picture').src = data.profile_picture_url;
 
-                // Display people who don't follow back
+                // Menampilkan orang yang tidak follow back
                 document.getElementById('dont-follow-back-count').innerText = `${data.dont_follow_back_count} people don't follow you back`;
 
                 const dontFollowBackList = document.getElementById('dont-follow-me-back');
@@ -284,31 +210,51 @@
                     dontFollowBackList.appendChild(li);
                 });
 
-                // Gradually increase progress bar value to 100%
-                setTimeout(() => {
-                    let progress = 50;
-                    const finalProgressInterval = setInterval(() => {
-                        if (progress < 100) {
-                            progress += 5;
-                            progressBar.value = progress;
-                        } else {
-                            clearInterval(finalProgressInterval);
-                        }
-                    }, 100);  // Update every 100ms
+                // Mengisi progress bar sampai 100%
+                let progress = 50;
+                const finalProgressInterval = setInterval(() => {
+                    if (progress < 100) {
+                        progress += 5;
+                        progressBar.value = progress;
+                    } else {
+                        clearInterval(finalProgressInterval);
+                    }
+                }, 100);  // Update setiap 100ms
 
-                    // Hide the progress bar after completion
-                    setTimeout(() => {
-                        progressBar.style.display = 'none';
-                    }, 500);
-                }, 1000);  // Wait for a second before filling up to 100%
+                // Sembunyikan progress bar setelah selesai
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 500);
 
             } catch (error) {
                 console.error('Error fetching Instagram data', error);
             }
         }
 
-        // Attach event listener to login button
-        document.getElementById('login-button').addEventListener('click', startLoginProgress);
+        // Event listener untuk tombol login
+        document.getElementById('login-button').addEventListener('click', async () => {
+            const username = document.getElementById('username-input').value;
+            const password = document.getElementById('password-input').value;
+
+            if (username && password) {
+                // Mengirim kredensial login ke backend untuk diproses
+                const response = await fetch('/api/v1/instagram/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    startLoginProgress();  // Mulai progress bar setelah login
+                } else {
+                    alert('Login gagal. Periksa kredensial Anda dan coba lagi.');
+                }
+            } else {
+                alert('Harap masukkan username dan password');
+            }
+        });
     </script>
 </body>
 </html>

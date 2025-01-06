@@ -1,25 +1,24 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const path = require('path');
-const cors = require('cors'); // Tambahkan import untuk CORS
-const instagramRoutes = require('./routes/instagram'); // Import routing Instagram
-
-dotenv.config(); // Memuat variabel dari file .env
+const cors = require('cors');
+const instagramRoutes = require('./routes/instagram');
+const bodyParser = require('body-parser'); // Menggunakan body-parser untuk menerima data JSON
+dotenv.config();
 
 const app = express();
 
-// Menambahkan middleware CORS
-app.use(cors()); // Secara default mengizinkan semua origin
-
-// Menambahkan routing Instagram API
-app.use('/api/v1/instagram', instagramRoutes);
-
-// Menyajikan file HTML dari folder public
+// Middleware
+app.use(cors());
+app.use(bodyParser.json()); // Menambahkan middleware bodyParser untuk mengurai JSON
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Routing Instagram API
+app.use('/api/v1/instagram', instagramRoutes);
 
 // Atur route untuk file HTML utama
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html')); // Sesuaikan dengan path file HTML Anda
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Memulai server pada port 3000
