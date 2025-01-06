@@ -1,8 +1,8 @@
 const { IgApiClient } = require('instagram-private-api');
 const axios = require('axios');
 const path = require('path');
-const { db } = require(path.resolve(__dirname, './config/firebaseConfig')); // Firebase config
 
+const { db } = require('./config/firebaseConfig'); // Menyesuaikan jalur relatif
 
 const ig = new IgApiClient();
 
