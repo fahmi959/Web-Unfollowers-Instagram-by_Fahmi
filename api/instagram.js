@@ -1,15 +1,39 @@
 const { IgApiClient } = require('instagram-private-api');
 const ig = new IgApiClient();
-let sessionData = null;
+const admin = require('firebase-admin');
+
+// Inisialisasi Firebase
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+  databaseURL: 'https://your-project-id.firebaseio.com', // Ganti dengan URL database Anda
+});
+
+const db = admin.database();
 
 const login = async (username, password) => {
     ig.state.generateDevice(username);
 
-    if (sessionData) {
-        ig.state.deserialize(sessionData);
-        try {
-            await ig.account.currentUser();
-        } catch (error) {
+    // Cek apakah sesi sudah ada di Firebase
+    const userSessionRef = db.ref(`sessions/${username}`);
+    const snapshot = await userSessionRef.once('value');
+    const storedSessionData = snapshot.val();
+
+    if (storedSessionData) {
+        const sessionTimestamp = storedSessionData.timestamp;
+        const currentTime = Date.now();
+        
+        // Cek apakah sesi sudah kadaluarsa (5 menit)
+        if (currentTime - sessionTimestamp < 5 * 60 * 1000) {
+            // Sesi masih valid, lanjutkan login
+            ig.state.deserialize(storedSessionData.session);
+            try {
+                await ig.account.currentUser();
+            } catch (error) {
+                await forceLogin(username, password);
+            }
+        } else {
+            // Sesi sudah expired, logout dan hapus sesi
+            await logout(username);
             await forceLogin(username, password);
         }
     } else {
@@ -20,7 +44,14 @@ const login = async (username, password) => {
 const forceLogin = async (username, password) => {
     try {
         await ig.account.login(username, password);
-        sessionData = ig.state.serialize();
+        const sessionData = ig.state.serialize();
+        const currentTime = Date.now(); // Simpan waktu login saat ini
+
+        // Simpan sessionData dan timestamp di Firebase
+        await db.ref(`sessions/${username}`).set({
+            session: sessionData,
+            timestamp: currentTime, // Waktu login
+        });
     } catch (error) {
         if (error.name === 'IgCheckpointError') {
             throw new Error('Instagram needs 2FA');
@@ -30,11 +61,16 @@ const forceLogin = async (username, password) => {
     }
 };
 
+const logout = async (username) => {
+    // Hapus sesi pengguna di Firebase untuk memastikan login ulang
+    await db.ref(`sessions/${username}`).remove();
+    // Anda bisa menambahkan kode untuk logout dari Instagram di sini
+};
+
 module.exports = async (req, res) => {
     const { method, url } = req;
 
     if (method === 'POST' && url === '/api/v1/instagram/login') {
-        // Handle login request
         const { username, password } = req.body;
         try {
             await login(username, password);
@@ -45,7 +81,6 @@ module.exports = async (req, res) => {
     }
 
     if (method === 'GET' && url === '/api/v1/instagram/profile') {
-        // Handle profile request
         try {
             const user = await ig.account.currentUser();
             const followers = await ig.feed.accountFollowers(user.pk).items();
@@ -67,6 +102,5 @@ module.exports = async (req, res) => {
         }
     }
 
-    // Jika route tidak dikenali
     return res.status(404).json({ message: 'Route tidak ditemukan' });
 };
