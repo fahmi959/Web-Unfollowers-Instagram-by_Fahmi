@@ -164,7 +164,7 @@ exports.handler = async function(event, context) {
 
 const followersCount = user.follower_count; //NAMBAH YA
 const followingCount = user.following_count;
-            const dontFollowBackCount = dontFollowBack.length; // Ini sudah ada sebelumnya
+        
 const fullName = user.full_name; // TAMBAHAN
 
             // Simpan ke Firebase Realtime Database
@@ -176,7 +176,7 @@ const fullName = user.full_name; // TAMBAHAN
     timestamp: new Date().toISOString(),
   full_name: fullName, // Tambahkan nama lengkap
     followers_count: followersCount, 
-        dont_follow_back_count: dontFollowBackCount,
+
     following_count: followingCount,             // Tambahkan jumlah following
     profile_picture_url: user.profile_pic_url,    // gambar profil
 };
