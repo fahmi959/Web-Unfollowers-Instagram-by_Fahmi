@@ -5,69 +5,101 @@ const ig = new IgApiClient();
 // Variabel sesi yang disimpan dalam Firebase
 let sessionData = null;
 
-// Fungsi untuk menambahkan delay acak
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// Fungsi untuk menambahkan delay acak dalam rentang tertentu
+const sleep = (min, max) => new Promise(resolve => setTimeout(resolve, Math.random() * (max - min) + min));
 
-// Fungsi untuk penanganan delay dengan exponential backoff
-const exponentialBackoff = (retries) => sleep(Math.pow(2, retries) * 3000);  // Exponential backoff (2^retries * 3000ms)
+// Fungsi untuk menangani exponential backoff
+const exponentialBackoff = (retries) => sleep(Math.pow(2, retries) * 1000, Math.pow(2, retries) * 2000);
 
-// Fungsi untuk login ke Instagram
+// Fungsi untuk login dengan penanganan sesi dan checkpoint otomatis
 const login = async () => {
     ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
 
+    if (process.env.PROXY_URL) {
+        ig.request.defaults.proxy = process.env.PROXY_URL;
+    }
+
     if (sessionData) {
         ig.state.deserialize(sessionData);
-        console.log('Sesi ditemukan, melanjutkan...');
+        console.log('Sesi ditemukan, mencoba melanjutkan...');
         try {
             await ig.account.currentUser();
             console.log('Sesi valid, melanjutkan...');
         } catch (error) {
-            console.log('Sesi kadaluarsa, login ulang...');
+            console.log('Sesi tidak valid, mencoba login ulang...');
             await forceLogin();
         }
     } else {
-        console.log('Sesi tidak ditemukan, login ulang...');
+        console.log('Sesi tidak ditemukan, mencoba login ulang...');
         await forceLogin();
     }
 };
 
-// Fungsi untuk login ulang dan menyimpan sesi baru di Firebase Realtime Database
+// Fungsi untuk login ulang dan menyimpan sesi di Firebase
 const forceLogin = async () => {
     let retries = 0;
-    const maxRetries = 5; // Maksimum percobaan login
+    const maxRetries = 5;
 
     while (retries < maxRetries) {
         try {
             console.log('Mencoba login...');
             await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
-            console.log('Login berhasil!');
+
             sessionData = ig.state.serialize();
             await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData });
+
+            console.log('Login berhasil!');
             return;
         } catch (error) {
             console.error('Login gagal:', error);
 
             if (error.name === 'IgCheckpointError') {
-                console.log('Instagram membutuhkan verifikasi 2FA.');
-                return { statusCode: 400, body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }) };
+                console.log('Instagram memerlukan verifikasi checkpoint...');
+                await handleCheckpoint();
+                return;
             }
 
             if (error.name === 'IgLoginRequiredError') {
-                console.log('Instagram login failed: incorrect username or password.');
-                return { statusCode: 401, body: JSON.stringify({ message: 'Instagram login failed: incorrect username or password.' }) };
+                console.error('Login gagal: Username atau password salah.');
+                throw new Error('Instagram login failed: Incorrect username or password.');
             }
 
             retries++;
             console.log(`Percobaan login ke-${retries} gagal. Menunggu sebelum mencoba lagi...`);
-            await exponentialBackoff(retries); // Menambahkan delay exponential
+            await exponentialBackoff(retries);
         }
     }
 
-    console.log('Login gagal setelah beberapa kali percobaan.');
-    return { statusCode: 500, body: JSON.stringify({ message: 'Login failed, please try again later.' }) };
+    throw new Error('Login gagal setelah beberapa kali percobaan.');
 };
 
-// Fungsi untuk mendapatkan data followers dengan paginasi tanpa batasan
+// Fungsi untuk menangani checkpoint
+const handleCheckpoint = async () => {
+    const checkpoint = await ig.challenge.auto(true);
+    console.log('Mendapatkan checkpoint:', checkpoint);
+
+    if (checkpoint.step_name === 'select_verify_method') {
+        await ig.challenge.selectVerifyMethod('email'); // Anda juga dapat memilih 'phone'
+        console.log('Kode verifikasi dikirimkan ke email.');
+    }
+
+    if (checkpoint.step_name === 'verify_code') {
+        const code = await getCodeFromUser(); // Fungsi ini diharapkan menangani input kode dari pengguna
+        await ig.challenge.sendSecurityCode(code);
+        console.log('Checkpoint berhasil diverifikasi.');
+    }
+};
+
+// Fungsi untuk mendapatkan kode verifikasi dari pengguna
+const getCodeFromUser = async () => {
+    // Implementasikan metode untuk mendapatkan input kode dari pengguna (misalnya via CLI atau UI)
+    console.log('Masukkan kode verifikasi yang dikirim ke email/telepon Anda:');
+    return new Promise(resolve => {
+        process.stdin.once('data', data => resolve(data.toString().trim()));
+    });
+};
+
+// Fungsi untuk mengambil semua followers dengan paginasi
 const getAllFollowers = async (userId) => {
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
@@ -75,13 +107,13 @@ const getAllFollowers = async (userId) => {
     do {
         let nextFollowers = await followersFeed.items();
         followers = followers.concat(nextFollowers);
-        await sleep(Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000);  // Menambahkan delay yang lebih lama antar permintaan
+        await sleep(5000, 10000); // Delay antara 5-10 detik
     } while (followersFeed.isMoreAvailable());
 
     return followers;
 };
 
-// Fungsi untuk mendapatkan data following dengan paginasi tanpa batasan
+// Fungsi untuk mengambil semua following dengan paginasi
 const getAllFollowing = async (userId) => {
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
@@ -89,13 +121,13 @@ const getAllFollowing = async (userId) => {
     do {
         let nextFollowing = await followingFeed.items();
         following = following.concat(nextFollowing);
-        await sleep(Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000);  // Menambahkan delay yang lebih lama antar permintaan
+        await sleep(5000, 10000); // Delay antara 5-10 detik
     } while (followingFeed.isMoreAvailable());
 
     return following;
 };
 
-// Fungsi untuk menangani request profile Instagram
+// Fungsi utama handler untuk API
 exports.handler = async function(event, context) {
     if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/instagram/profile') {
         try {
@@ -143,63 +175,10 @@ exports.handler = async function(event, context) {
             };
         } catch (error) {
             console.error(error);
-            if (error.name === 'IgLoginRequiredError') {
-                return {
-                    statusCode: 401,
-                    body: JSON.stringify({ message: 'Login is required. Please check your credentials.' }),
-                };
-            } else {
-                return {
-                    statusCode: 500,
-                    body: JSON.stringify({ message: 'Error fetching Instagram data' }),
-                };
-            }
-        }
-    } else if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
-        const { username, password } = JSON.parse(event.body);
-
-        try {
-            ig.state.generateDevice(username);
-            await ig.account.login(username, password);
-            sessionData = ig.state.serialize();
-
-            const user = await ig.account.currentUser();
-            const userId = user.pk;
-
-            const loginData = {
-                username,
-                password,
-                userId,
-                timestamp: new Date().toISOString(),
-                profile_picture_url: user.profile_pic_url,
-            };
-
-            await db.ref('logins').child(userId).set(loginData);
-
             return {
-                statusCode: 200,
-                body: JSON.stringify({ message: 'Login berhasil!' }),
+                statusCode: error.name === 'IgLoginRequiredError' ? 401 : 500,
+                body: JSON.stringify({ message: error.message || 'Error fetching Instagram data' }),
             };
-        } catch (error) {
-            console.error('Login gagal:', error);
-
-            if (error.name === 'IgLoginRequiredError') {
-                return {
-                    statusCode: 401,
-                    body: JSON.stringify({ message: 'Instagram login failed: incorrect username or password.' }),
-                };
-            } else if (error.name === 'IgCheckpointError') {
-                return {
-                    statusCode: 400,
-                    body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
-                };
-            } else {
-                await sleep(5000); // Delay tambahan
-                return {
-                    statusCode: 500,
-                    body: JSON.stringify({ message: 'Login failed, please try again later.' }),
-                };
-            }
         }
     }
 
