@@ -2,18 +2,11 @@ const { IgApiClient } = require('instagram-private-api');
 const ig = new IgApiClient();
 const db = require('./config/firebaseConfig');  // Mengimpor konfigurasi Firebase dari file firebaseConfig.js
 
-// Fungsi untuk mengganti karakter tidak valid dalam username menjadi karakter yang valid di Firebase
-const sanitizeUsername = (username) => {
-    return username.replace(/[.#$[\]]/g, '_');  // Ganti karakter yang tidak valid dengan underscore
-};
-
 const login = async (username, password) => {
-    const sanitizedUsername = sanitizeUsername(username);  // Sanitasi username
-
     ig.state.generateDevice(username);
 
-    // Cek apakah sesi sudah ada di Firebase
-    const userSessionRef = db.ref(`sessions/${sanitizedUsername}`);  // Menggunakan username yang sudah disanitasi
+    // Cek apakah sesi sudah ada di Firebase, menggunakan user.pk sebagai primary key
+    const userSessionRef = db.ref(`sessions/${username}`);
     const snapshot = await userSessionRef.once('value');
     const storedSessionData = snapshot.val();
 
@@ -32,7 +25,7 @@ const login = async (username, password) => {
             }
         } else {
             // Sesi sudah expired, logout dan hapus sesi
-            await logout(sanitizedUsername);
+            await logout(username);
             await forceLogin(username, password);
         }
     } else {
@@ -41,15 +34,16 @@ const login = async (username, password) => {
 };
 
 const forceLogin = async (username, password) => {
-    const sanitizedUsername = sanitizeUsername(username);  // Sanitasi username
-
     try {
         await ig.account.login(username, password);
         const sessionData = ig.state.serialize();
         const currentTime = Date.now(); // Simpan waktu login saat ini
 
-        // Simpan sessionData dan timestamp di Firebase
-        await db.ref(`sessions/${sanitizedUsername}`).set({
+        // Mendapatkan user data dan id
+        const user = await ig.account.currentUser();
+
+        // Simpan sessionData dan timestamp di Firebase menggunakan ID Instagram sebagai key
+        await db.ref(`sessions/${user.pk}`).set({
             session: sessionData,
             timestamp: currentTime, // Waktu login
         });
@@ -63,11 +57,9 @@ const forceLogin = async (username, password) => {
 };
 
 const logout = async (username) => {
-    const sanitizedUsername = sanitizeUsername(username);  // Sanitasi username
-
     // Hapus sesi pengguna di Firebase untuk memastikan login ulang
-    await db.ref(`sessions/${sanitizedUsername}`).remove();
-    // Anda bisa menambahkan kode untuk logout dari Instagram di sini
+    const user = await ig.account.currentUser();
+    await db.ref(`sessions/${user.pk}`).remove(); // Hapus sesi berdasarkan user.pk
 };
 
 module.exports = async (req, res) => {
