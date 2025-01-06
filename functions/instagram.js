@@ -9,7 +9,7 @@ let sessionData = null;
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Fungsi untuk penanganan delay dengan exponential backoff
-const exponentialBackoff = (retries) => sleep(Math.pow(2, retries) * 1000);  // Exponential backoff (2^retries * 1000ms)
+const exponentialBackoff = (retries) => sleep(Math.pow(2, retries) * 3000);  // Exponential backoff (2^retries * 3000ms)
 
 // Fungsi untuk login ke Instagram
 const login = async () => {
@@ -75,7 +75,7 @@ const getAllFollowers = async (userId) => {
     do {
         let nextFollowers = await followersFeed.items();
         followers = followers.concat(nextFollowers);
-        await sleep(Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000);  // Random delay antar permintaan
+        await sleep(Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000);  // Menambahkan delay yang lebih lama antar permintaan
     } while (followersFeed.isMoreAvailable());
 
     return followers;
@@ -89,7 +89,7 @@ const getAllFollowing = async (userId) => {
     do {
         let nextFollowing = await followingFeed.items();
         following = following.concat(nextFollowing);
-        await sleep(Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000);  // Random delay antar permintaan
+        await sleep(Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000);  // Menambahkan delay yang lebih lama antar permintaan
     } while (followingFeed.isMoreAvailable());
 
     return following;
