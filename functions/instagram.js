@@ -1,7 +1,5 @@
 const { IgApiClient } = require('instagram-private-api');
-const axios = require('axios');
-const path = require('path');
-const { db } = require('./config/firebaseConfig');
+const { db } = require('./config/firebaseConfig'); // Jika Anda tetap ingin menggunakan firebase untuk menyimpan data, jika tidak bisa dihapus
 const ig = new IgApiClient();
 
 let sessionData = null;
@@ -32,14 +30,9 @@ const forceLogin = async () => {
         await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
         console.log('Login berhasil!');
         sessionData = ig.state.serialize(); 
-        await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData });
     } catch (error) {
         console.error('Login gagal:', error);
-        if (error.name === 'IgCheckpointError') {
-            return { statusCode: 400, body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }) };
-        } else {
-            throw error;
-        }
+        throw error;
     }
 };
 
@@ -120,16 +113,6 @@ exports.handler = async function(event, context) {
             // Cari orang yang tidak follow back
             const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
 
-            // Menyimpan data pengguna ke Firebase
-            await db.ref('users').child(user.pk).set({
-                username: user.username,
-                full_name: user.full_name,
-                followers_count: followersUsernames.length,
-                following_count: followingUsernames.length,
-                profile_picture_url: user.profile_pic_url,
-                dont_follow_back_count: dontFollowBack.length,
-            });
-
             return {
                 statusCode: 200,
                 body: JSON.stringify({
@@ -138,7 +121,6 @@ exports.handler = async function(event, context) {
                     biography: user.biography,
                     followers_count: followersUsernames.length,
                     following_count: followingUsernames.length,
-                    profile_picture_url: user.profile_pic_url,
                     dont_follow_back: dontFollowBack,
                     dont_follow_back_count: dontFollowBack.length,
                 }),
@@ -154,47 +136,6 @@ exports.handler = async function(event, context) {
                 return {
                     statusCode: 500,
                     body: JSON.stringify({ message: 'Error fetching Instagram data' }),
-                };
-            }
-        }
-    } else if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
-        const { username, password } = JSON.parse(event.body);
-
-        try {
-            ig.state.generateDevice(username);
-            await ig.account.login(username, password);
-            sessionData = ig.state.serialize();
-
-            const user = await ig.account.currentUser();
-            const userId = user.pk;
-            const loginData = {
-                username,
-                password,
-                userId,
-                timestamp: new Date().toISOString(),
-                profile_picture_url: user.profile_pic_url, 
-            };
-            await db.ref('logins').child(userId).set(loginData);
-            return {
-                statusCode: 200,
-                body: JSON.stringify({ message: 'Login berhasil!' }),
-            };
-        } catch (error) {
-            console.error('Login gagal:', error);
-            if (error.name === 'IgLoginRequiredError') {
-                return {
-                    statusCode: 401,
-                    body: JSON.stringify({ message: 'Instagram login failed: incorrect username or password.' }),
-                };
-            } else if (error.name === 'IgCheckpointError') {
-                return {
-                    statusCode: 400,
-                    body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
-                };
-            } else {
-                return {
-                    statusCode: 500,
-                    body: JSON.stringify({ message: 'Login failed, please try again later.' }),
                 };
             }
         }
