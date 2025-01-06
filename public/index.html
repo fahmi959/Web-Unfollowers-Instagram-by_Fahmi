@@ -122,6 +122,8 @@
 
     </style>
 </head>
+
+
 <body>
     <div class="container">
         <!-- Bagian Profil dan Stats -->
@@ -145,7 +147,10 @@
             </div>
         </div>
 
-        <progress id="progress-bar" value="0" max="100" style="display: none;"></progress>
+        <progress id="progress-bar" value="0" max="100" style="width: 100%; height: 30px; display: none;">
+            Loading...
+        </progress>
+        <div id="progress-percentage" style="text-align: center; font-weight: bold; display: none;">0%</div>
 
         <div class="section-title">People Who Don't Follow Me Back</div>
         <p id="dont-follow-back-count"></p>
@@ -167,14 +172,18 @@
         // Fungsi untuk memulai progress bar selama login
         function startLoginProgress() {
             const progressBar = document.getElementById('progress-bar');
+            const progressPercentage = document.getElementById('progress-percentage');
             progressBar.style.display = 'block';
             progressBar.value = 0;  // Reset progress bar
+            progressPercentage.style.display = 'block';
+            progressPercentage.innerText = '0%';  // Reset percentage
 
             let progress = 0;
             const progressInterval = setInterval(() => {
                 if (progress < 50) {
                     progress += 5;  // Tambah 5% setiap interval
                     progressBar.value = progress;
+                    progressPercentage.innerText = `${progress}%`;
                 } else {
                     clearInterval(progressInterval);  // Hentikan setelah 50%
                     // Setelah login selesai, lanjutkan mengambil data Instagram
@@ -188,8 +197,10 @@
             try {
                 // Menampilkan progress bar
                 const progressBar = document.getElementById('progress-bar');
+                const progressPercentage = document.getElementById('progress-percentage');
                 progressBar.style.display = 'block';
                 progressBar.value = 50;  // Mulai dari 50% setelah login
+                progressPercentage.innerText = '50%';
 
                 const response = await fetch('/.netlify/functions/instagram/profile');
                 const data = await response.json();
@@ -200,7 +211,12 @@
                 document.getElementById('biography').innerText = data.biography;
                 document.getElementById('followers-count').innerText = data.followers_count;
                 document.getElementById('following-count').innerText = data.following_count;
-                document.getElementById('profile-picture').src = data.profile_picture_url;
+                
+                // Pastikan gambar profil dimuat dengan benar
+                const profilePictureElement = document.getElementById('profile-picture');
+                if (data.profile_picture_url) {
+                    profilePictureElement.src = data.profile_picture_url;
+                }
 
                 // Menampilkan orang yang tidak follow back
                 document.getElementById('dont-follow-back-count').innerText = `${data.dont_follow_back_count} people don't follow you back`;
@@ -219,6 +235,7 @@
                     if (progress < 100) {
                         progress += 5;
                         progressBar.value = progress;
+                        progressPercentage.innerText = `${progress}%`;
                     } else {
                         clearInterval(finalProgressInterval);
                     }
@@ -227,6 +244,7 @@
                 // Sembunyikan progress bar setelah selesai
                 setTimeout(() => {
                     progressBar.style.display = 'none';
+                    progressPercentage.style.display = 'none';
                 }, 500);
 
             } catch (error) {
@@ -280,4 +298,5 @@
     </script>
 </body>
 
+    
 </html>
