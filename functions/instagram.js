@@ -43,6 +43,9 @@ const forceLogin = async () => {
     }
 };
 
+// Fungsi delay dinamis untuk menghindari spam
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Fungsi untuk mengambil data followers dalam batch 5 orang
 const getAllFollowers = async (userId, retries = 3) => {
     let followers = [];
@@ -54,18 +57,15 @@ const getAllFollowers = async (userId, retries = 3) => {
             let nextFollowers = await followersFeed.items();
             followers = followers.concat(nextFollowers);
             attempt = 0;
-            const delayTime = Math.random() * (40000 - 10000) + 10000; 
+            const delayTime = Math.random() * (35000 - 10000) + 10000; // Waktu tunggu acak antara 10-35 detik
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
-            if (followers.length % 5 === 0) { // Batch setiap 5 followers
-                console.log('Batch selesai, melanjutkan ke batch berikutnya...');
-            }
         } catch (error) {
             console.error('Error fetching followers:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000);
+                await delay(5000); // Waktu tunggu ulang 5 detik saat gagal
             } else {
                 throw new Error('Failed to fetch followers after multiple retries.');
             }
@@ -85,18 +85,15 @@ const getAllFollowing = async (userId, retries = 3) => {
             let nextFollowing = await followingFeed.items();
             following = following.concat(nextFollowing);
             attempt = 0;
-            const delayTime = Math.random() * (40000 - 10000) + 10000;
+            const delayTime = Math.random() * (35000 - 10000) + 10000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
-            if (following.length % 5 === 0) { // Batch setiap 5 following
-                console.log('Batch selesai, melanjutkan ke batch berikutnya...');
-            }
         } catch (error) {
             console.error('Error fetching following:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000);
+                await delay(5000); 
             } else {
                 throw new Error('Failed to fetch following after multiple retries.');
             }
@@ -104,9 +101,6 @@ const getAllFollowing = async (userId, retries = 3) => {
     }
     return following;
 };
-
-// Fungsi delay untuk menghindari rate limiting
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Fungsi untuk menangani permintaan profile Instagram
 exports.handler = async function(event, context) {
