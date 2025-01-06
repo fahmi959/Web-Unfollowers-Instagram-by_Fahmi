@@ -188,7 +188,7 @@
                 progressBar.style.display = 'block';
                 progressBar.value = 50;  // Mulai dari 50% setelah login
 
-                const response = await fetch('/api/v1/instagram/profile');
+                const response = await fetch('/.netlify/functions/instagram/profile');
                 const data = await response.json();
 
                 // Menampilkan informasi profil
@@ -232,55 +232,39 @@
         }
 
         // Event listener untuk tombol login
-     document.getElementById('login-button').addEventListener('click', async () => {
-    const username = document.getElementById('username-input').value;
-    const password = document.getElementById('password-input').value;
+        document.getElementById('login-button').addEventListener('click', async () => {
+            const username = document.getElementById('username-input').value;
+            const password = document.getElementById('password-input').value;
 
-    if (username && password) {
-        console.log("Mengirimkan data login ke backend...");
-        try {
-            // Mengirimkan data login ke backend
-  const loginResponse = await fetch('/.netlify/functions/instagram/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password })
-            });
+            if (username && password) {
+                console.log("Mengirimkan data login ke backend...");
+                try {
+                    // Mengirimkan data login ke backend
+                    const loginResponse = await fetch('/.netlify/functions/instagram/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
 
-            const loginResult = await loginResponse.json();
-            console.log("Login response:", loginResult); // Menampilkan hasil login
+                    const loginResult = await loginResponse.json();
+                    console.log("Login response:", loginResult); // Menampilkan hasil login
 
-            if (loginResponse.ok) {
-                console.log('Login berhasil!', loginResult);
-                startLoginProgress();  // Mulai progress bar setelah login
-                
-                // Setelah login berhasil, ambil data profil Instagram
-                       const response = await fetch('/.netlify/functions/instagram/profile');
-                const profileData = await profileResponse.json();
-                console.log("Profile response:", profileData); // Menampilkan hasil profil
-                
-                if (profileResponse.ok) {
-                    // Menampilkan data profil di halaman
-                    // Contoh misalnya, menampilkan nama pengguna
-                    document.getElementById('username').innerText = profileData.username;
-                    // Tambahkan bagian lain sesuai kebutuhan
-
-                    console.log('Data profil berhasil didapatkan!', profileData);
-                } else {
-                    alert('Gagal mengambil data profil. Silakan coba lagi.');
+                    if (loginResponse.ok) {
+                        console.log('Login berhasil!', loginResult);
+                        startLoginProgress();  // Mulai progress bar setelah login
+                    } else {
+                        alert(loginResult.message || 'Login gagal. Periksa kredensial Anda dan coba lagi.');
+                    }
+                } catch (error) {
+                    console.error("Terjadi kesalahan saat mengirim request:", error);
+                    alert("Terjadi kesalahan saat mencoba login. Coba lagi.");
                 }
             } else {
-                alert(loginResult.message || 'Login gagal. Periksa kredensial Anda dan coba lagi.');
+                alert('Harap masukkan username dan password');
             }
-        } catch (error) {
-            console.error("Terjadi kesalahan saat mengirim request:", error);
-            alert("Terjadi kesalahan saat mencoba login. Coba lagi.");
-        }
-    } else {
-        alert('Harap masukkan username dan password');
-    }
-});
+        });
 
     </script>
 </body>
