@@ -4,134 +4,140 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instagram Profile</title>
-    <style>
-        /* Basic styling for the page */
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 0;
-            color: #333;
-        }
+  <style>
+    /* Basic styling for the page */
+    body {
+        font-family: 'Roboto', sans-serif;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 0;
+        color: #333;
+    }
 
-        .container {
-            width: 100%;
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: white;
-            border-radius: 15px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            margin-top: 30px;
-        }
+    .container {
+        width: 100%;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: white;
+        border-radius: 15px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        margin-top: 30px;
+    }
 
-        .profile-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-            animation: fadeIn 1s ease-in-out;
-        }
+    .profile-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        animation: fadeIn 1s ease-in-out;
+    }
 
-        .profile-picture {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #0095f6;
-            margin-right: 20px;
-            transition: transform 0.3s ease-in-out;
-        }
+    .profile-picture {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #0095f6;
+        margin-right: 20px;
+        transition: transform 0.3s ease-in-out;
+    }
 
-        .profile-info h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            margin: 0;
-        }
+    .profile-info h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin: 0;
+    }
 
-        .profile-info p {
-            color: #777;
-            font-size: 1.1rem;
-        }
+    .profile-info p {
+        color: #777;
+        font-size: 1.1rem;
+    }
 
-        .stats {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 30px;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-            animation: slideIn 1s ease-out;
-        }
+    .stats {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 30px;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        animation: slideIn 1s ease-out;
+    }
 
-        .stats div {
-            text-align: center;
-        }
+    .stats div {
+        text-align: center;
+    }
 
-        .stats h2 {
-            font-size: 2rem;
-            color: #0095f6;
-            font-weight: 600;
-            margin: 0;
-        }
+    .stats h2 {
+        font-size: 2rem;
+        color: #0095f6;
+        font-weight: 600;
+        margin: 0;
+    }
 
-        .stats p {
-            color: #777;
-            font-size: 1rem;
-        }
+    .stats p {
+        color: #777;
+        font-size: 1rem;
+    }
 
-        .button {
-            width: 100%;
-            padding: 15px;
-            background-color: #0095f6;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-top: 30px;
-            animation: fadeIn 1.5s ease-in-out;
-        }
+    .button {
+        width: 100%;
+        padding: 15px;
+        background-color: #0095f6;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        margin-top: 30px;
+        animation: fadeIn 1.5s ease-in-out;
+    }
 
-        .button:hover {
-            background-color: #007bb5;
-        }
+    .button:hover {
+        background-color: #007bb5;
+    }
 
-        /* Animations */
-        @keyframes fadeIn {
-            0% {
-                opacity: 0;
-            }
-            100% {
-                opacity: 1;
-            }
+    /* Animations */
+    @keyframes fadeIn {
+        0% {
+            opacity: 0;
         }
+        100% {
+            opacity: 1;
+        }
+    }
 
-        @keyframes slideIn {
-            0% {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-            100% {
-                transform: translateY(0);
-                opacity: 1;
-            }
+    @keyframes slideIn {
+        0% {
+            transform: translateY(50px);
+            opacity: 0;
         }
+        100% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
 
-        /* Styling for the progress bar */
-        progress {
-            width: 100%;
-            height: 40px; /* Besarkan progress bar */
-        }
+    /* Styling for the progress bar */
+    progress {
+        width: 100%;
+        height: 50px; /* Tinggi lebih besar */
+        margin-top: 20px;  /* Memberikan jarak dari elemen sebelumnya */
+        margin-bottom: 20px; /* Memberikan jarak ke bawah */
+    }
 
-        #progress-percentage {
-            font-weight: bold;
-            font-size: 1.2rem;
-            margin-top: 10px;
-        }
-    </style>
+    #progress-percentage {
+        font-weight: bold;
+        font-size: 1.5rem;
+        text-align: center;
+        margin-top: 10px; /* Memberikan jarak ke atas */
+        margin-bottom: 20px; /* Memberikan jarak ke bawah */
+    }
+
+</style>
+
 </head>
 
 
@@ -158,7 +164,7 @@
             </div>
         </div>
 
-        <progress id="progress-bar" value="0" max="100" style="display: none;">
+        <progress id="progress-bar" value="0" max="100" style="width: 100%; height: 30px; display: none;">
             Loading...
         </progress>
         <div id="progress-percentage" style="text-align: center; font-weight: bold; display: none;">0%</div>
@@ -194,7 +200,7 @@
                 if (progress < 50) {
                     progress += 5;  // Tambah 5% setiap interval
                     progressBar.value = progress;
-                    progressPercentage.innerText = `${progress}%`;
+                    progressPercentage.innerText = ${progress}%;
                 } else {
                     clearInterval(progressInterval);  // Hentikan setelah 50%
                     // Setelah login selesai, lanjutkan mengambil data Instagram
@@ -222,17 +228,15 @@
                 document.getElementById('biography').innerText = data.biography;
                 document.getElementById('followers-count').innerText = data.followers_count;
                 document.getElementById('following-count').innerText = data.following_count;
-
+                
                 // Pastikan gambar profil dimuat dengan benar
                 const profilePictureElement = document.getElementById('profile-picture');
                 if (data.profile_picture_url) {
-                    // Menggunakan decode untuk URL gambar
-                    const validImageUrl = decodeURIComponent(data.profile_picture_url);
-                    profilePictureElement.src = validImageUrl;
+                    profilePictureElement.src = data.profile_picture_url;
                 }
 
                 // Menampilkan orang yang tidak follow back
-                document.getElementById('dont-follow-back-count').innerText = `${data.dont_follow_back_count} people don't follow you back`;
+                document.getElementById('dont-follow-back-count').innerText = ${data.dont_follow_back_count} people don't follow you back;
 
                 const dontFollowBackList = document.getElementById('dont-follow-me-back');
                 dontFollowBackList.innerHTML = '';
@@ -248,7 +252,7 @@
                     if (progress < 100) {
                         progress += 5;
                         progressBar.value = progress;
-                        progressPercentage.innerText = `${progress}%`;
+                        progressPercentage.innerText = ${progress}%;
                     } else {
                         clearInterval(finalProgressInterval);
                     }
@@ -310,4 +314,6 @@
 
     </script>
 </body>
+
+    
 </html>
