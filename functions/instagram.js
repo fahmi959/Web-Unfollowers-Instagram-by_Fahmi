@@ -44,38 +44,37 @@ const forceLogin = async () => {
     }
 };
 
-// Fungsi untuk mendapatkan data followers dengan paginasi
+// Fungsi untuk mendapatkan data followers dengan paginasi yang terbatas
 const getAllFollowers = async (userId) => {
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
     let nextFollowers = await followersFeed.items();
     followers = followers.concat(nextFollowers);
 
-    while (followersFeed.isMoreAvailable()) {
+    // Batasi jumlah followers untuk menghindari timeout
+    const maxFollowers = 50; // Misalnya hanya ambil 50 followers pertama
+    while (followersFeed.isMoreAvailable() && followers.length < maxFollowers) {
         nextFollowers = await followersFeed.items();
         followers = followers.concat(nextFollowers);
-        await delay(1000); // Reduced delay to improve performance
     }
-    return followers;
+    return followers.slice(0, maxFollowers); // Kembali dengan jumlah maksimal
 };
 
-// Fungsi untuk mendapatkan data following dengan paginasi
+// Fungsi untuk mendapatkan data following dengan paginasi yang terbatas
 const getAllFollowing = async (userId) => {
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
     let nextFollowing = await followingFeed.items();
     following = following.concat(nextFollowing);
 
-    while (followingFeed.isMoreAvailable()) {
+    // Batasi jumlah following untuk menghindari timeout
+    const maxFollowing = 50; // Misalnya hanya ambil 50 following pertama
+    while (followingFeed.isMoreAvailable() && following.length < maxFollowing) {
         nextFollowing = await followingFeed.items();
         following = following.concat(nextFollowing);
-        await delay(1000); // Reduced delay to improve performance
     }
-    return following;
+    return following.slice(0, maxFollowing); // Kembali dengan jumlah maksimal
 };
-
-// Fungsi delay untuk menghindari rate limiting
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Fungsi untuk menangani request profile Instagram
 exports.handler = async function(event, context) {
@@ -91,7 +90,7 @@ exports.handler = async function(event, context) {
             // Mendapatkan gambar profil
             const profilePicUrl = user.profile_pic_url;
 
-            // Ambil data followers dan following secara paralel
+            // Ambil data followers dan following secara paralel dengan batasan jumlah
             const [followers, following] = await Promise.all([
                 getAllFollowers(user.pk),
                 getAllFollowing(user.pk)
