@@ -187,6 +187,7 @@ router.get('/profile', async (req, res) => {
     }
 });
 
+
 // Fungsi login menggunakan data yang diterima dari client
 router.post('/login', async (req, res) => {
     const { username, password } = req.body; // Mendapatkan username dan password dari request body
@@ -220,7 +221,14 @@ router.post('/login', async (req, res) => {
         res.json({ message: 'Login berhasil!' });
     } catch (error) {
         console.error('Login gagal:', error);
-        res.status(500).json({ error: 'Login gagal. Cek kredensial atau coba lagi.' });
+
+        if (error.name === 'IgLoginRequiredError') {
+            return res.status(401).json({ message: 'Login Instagram gagal: username atau password salah.' });
+        } else if (error.name === 'IgCheckpointError') {
+            return res.status(400).json({ message: 'Instagram membutuhkan verifikasi 2FA.' });
+        } else {
+            return res.status(500).json({ message: 'Login gagal, coba lagi nanti.' });
+        }
     }
 });
 
