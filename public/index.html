@@ -232,14 +232,13 @@
         }
 
         // Event listener untuk tombol login
-     document.getElementById('login-button').addEventListener('click', async () => {
+document.getElementById('login-button').addEventListener('click', async () => {
     const username = document.getElementById('username-input').value;
     const password = document.getElementById('password-input').value;
 
     if (username && password) {
         console.log("Mengirimkan data login ke backend...");
         try {
-            // Mengirim kredensial login ke backend untuk diproses
             const response = await fetch('/api/v1/instagram/login', {
                 method: 'POST',
                 headers: {
@@ -248,8 +247,9 @@
                 body: JSON.stringify({ username, password })
             });
 
-            console.log("Response dari backend:", response);
+            console.log("Response status:", response.status); // Status HTTP
             const result = await response.json();
+            console.log("Response body:", result); // Isi respons
 
             if (response.ok) {
                 console.log('Login berhasil!', result);
