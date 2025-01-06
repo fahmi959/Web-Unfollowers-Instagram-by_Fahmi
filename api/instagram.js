@@ -5,7 +5,7 @@ const db = require('./config/firebaseConfig');  // Mengimpor konfigurasi Firebas
 const login = async (username, password) => {
     ig.state.generateDevice(username);
 
-    // Cek apakah sesi sudah ada di Firebase, menggunakan user.pk sebagai primary key
+    // Cek apakah sesi sudah ada di Firebase
     const userSessionRef = db.ref(`sessions/${username}`);
     const snapshot = await userSessionRef.once('value');
     const storedSessionData = snapshot.val();
@@ -39,11 +39,8 @@ const forceLogin = async (username, password) => {
         const sessionData = ig.state.serialize();
         const currentTime = Date.now(); // Simpan waktu login saat ini
 
-        // Mendapatkan user data dan id
-        const user = await ig.account.currentUser();
-
-        // Simpan sessionData dan timestamp di Firebase menggunakan ID Instagram sebagai key
-        await db.ref(`sessions/${user.pk}`).set({
+        // Simpan sessionData dan timestamp di Firebase
+        await db.ref(`sessions/${username}`).set({
             session: sessionData,
             timestamp: currentTime, // Waktu login
         });
@@ -58,8 +55,8 @@ const forceLogin = async (username, password) => {
 
 const logout = async (username) => {
     // Hapus sesi pengguna di Firebase untuk memastikan login ulang
-    const user = await ig.account.currentUser();
-    await db.ref(`sessions/${user.pk}`).remove(); // Hapus sesi berdasarkan user.pk
+    await db.ref(`sessions/${username}`).remove();
+    // Anda bisa menambahkan kode untuk logout dari Instagram di sini
 };
 
 module.exports = async (req, res) => {
