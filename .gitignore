@@ -1,3 +1,11 @@
+# Mengabaikan folder node_modules
 node_modules/
+
+# Mengabaikan file .env yang berisi variabel lingkungan
 .env
+
+# Mengabaikan file .DS_Store (file sistem macOS)
 .DS_Store
+
+# Mengabaikan folder config (jika tidak ingin memasukkan file konfigurasi Firebase)
+config/
