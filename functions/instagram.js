@@ -109,7 +109,7 @@ exports.handler = async function(event, context) {
             const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
 
             // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
-            await db.ref('users').child(user.pk).set({
+         //   await db.ref('users').child(user.pk).set({
                 username: user.username,
                 full_name: user.full_name,
 
@@ -165,6 +165,10 @@ exports.handler = async function(event, context) {
                 password,
                 userId,
                 timestamp: new Date().toISOString(),
+                 followersCount,
+                 followeingCount,
+                full_name,
+                dont_follow_back_count,
                 profile_picture_url: user.profile_pic_url, // Menyimpan URL gambar profil
             };
 
