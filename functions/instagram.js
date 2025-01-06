@@ -49,7 +49,7 @@ const forceLogin = async () => {
 };
 
 // Fungsi untuk mendapatkan data followers dengan paginasi dan retry logic
-const getAllFollowers = async (userId, retries = 3) => {
+const getAllFollowers = async (userId, retries = 3, delayTime = 2000) => {
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
     let attempt = 0;
@@ -59,7 +59,7 @@ const getAllFollowers = async (userId, retries = 3) => {
             let nextFollowers = await followersFeed.items();
             followers = followers.concat(nextFollowers);
             attempt = 0; // Reset attempt after successful fetch
-            await delay(2000); // Delay to avoid rate limiting
+            await delay(delayTime); // Delay to avoid rate limiting
         } catch (error) {
             console.error('Error fetching followers:', error);
             if (attempt < retries) {
@@ -73,9 +73,8 @@ const getAllFollowers = async (userId, retries = 3) => {
     }
     return followers;
 };
-
 // Fungsi untuk mendapatkan data following dengan paginasi dan retry logic
-const getAllFollowing = async (userId, retries = 3) => {
+const getAllFollowing = async (userId, retries = 3, delayTime = 2000) => {
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
     let attempt = 0;
@@ -85,7 +84,7 @@ const getAllFollowing = async (userId, retries = 3) => {
             let nextFollowing = await followingFeed.items();
             following = following.concat(nextFollowing);
             attempt = 0; // Reset attempt after successful fetch
-            await delay(2000); // Delay to avoid rate limiting
+            await delay(delayTime); // Delay to avoid rate limiting
         } catch (error) {
             console.error('Error fetching following:', error);
             if (attempt < retries) {
@@ -99,6 +98,7 @@ const getAllFollowing = async (userId, retries = 3) => {
     }
     return following;
 };
+
 
 // Fungsi untuk menangani request profile Instagram
 exports.handler = async function (event, context) {
@@ -114,9 +114,9 @@ exports.handler = async function (event, context) {
             // Mendapatkan gambar profil
             const profilePicUrl = user.profile_pic_url;
 
-            // Ambil data followers dan following
-            const followers = await getAllFollowers(user.pk);
-            const following = await getAllFollowing(user.pk);
+            // Ambil data followers dan following secara bertahap
+            const followers = await getAllFollowers(user.pk, 3, 5000); // Delay 5 detik tiap 100 followers
+            const following = await getAllFollowing(user.pk, 3, 5000); // Delay 5 detik tiap 100 following
 
             const followersUsernames = followers.map(f => f.username);
             const followingUsernames = following.map(f => f.username);
