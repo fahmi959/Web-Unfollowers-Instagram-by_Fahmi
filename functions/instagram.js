@@ -99,10 +99,11 @@ exports.handler = async function(event, context) {
             const followersUsernames = followers.map(f => f.username);
             const followingUsernames = following.map(f => f.username);
 
-            // Mengonversi followersUsernames ke Set untuk pencarian cepat
+            // Mengonversi followersUsernames dan followingUsernames ke Set untuk pencarian cepat
             const followersSet = new Set(followersUsernames);
+            const followingSet = new Set(followingUsernames);
 
-            // Cari orang yang tidak follow back menggunakan Set untuk pencarian cepat
+            // Menggunakan filter untuk mencari orang yang tidak follow back
             const dontFollowBack = followingUsernames.filter(username => !followersSet.has(username));
 
             // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
