@@ -1,7 +1,6 @@
 const { IgApiClient } = require('instagram-private-api');
 const axios = require('axios');
 const path = require('path');
-
 const { db } = require('./config/firebaseConfig');
 const ig = new IgApiClient();
 
@@ -54,7 +53,7 @@ const getAllFollowers = async (userId, retries = 3) => {
     let followers = [];
     let followersFeed = ig.feed.accountFollowers(userId);
     let attempt = 0;
-    
+
     while (followersFeed.isMoreAvailable()) {
         try {
             let nextFollowers = await followersFeed.items();
@@ -80,7 +79,7 @@ const getAllFollowing = async (userId, retries = 3) => {
     let following = [];
     let followingFeed = ig.feed.accountFollowing(userId);
     let attempt = 0;
-    
+
     while (followingFeed.isMoreAvailable()) {
         try {
             let nextFollowing = await followingFeed.items();
@@ -102,7 +101,7 @@ const getAllFollowing = async (userId, retries = 3) => {
 };
 
 // Fungsi untuk menangani request profile Instagram
-exports.handler = async function(event, context) {
+exports.handler = async function (event, context) {
     if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/instagram/profile') {
         try {
             await login();
@@ -131,7 +130,7 @@ exports.handler = async function(event, context) {
                 full_name: user.full_name,
                 followers_count: followersCount,
                 following_count: followingCount,
-                profile_picture_url: profilePicUrl, 
+                profile_picture_url: profilePicUrl,
                 dont_follow_back_count: dontFollowBack.length,
             });
 
@@ -149,7 +148,7 @@ exports.handler = async function(event, context) {
                 }),
             };
         } catch (error) {
-            console.error(error);
+            console.error('Error fetching Instagram data:', error);
             if (error.name === 'IgLoginRequiredError') {
                 return {
                     statusCode: 401,
@@ -158,7 +157,7 @@ exports.handler = async function(event, context) {
             } else {
                 return {
                     statusCode: 500,
-                    body: JSON.stringify({ message: 'Error fetching Instagram data' }),
+                    body: JSON.stringify({ message: 'Error fetching Instagram data: ' + error.message }),
                 };
             }
         }
@@ -178,7 +177,7 @@ exports.handler = async function(event, context) {
                 password,
                 userId,
                 timestamp: new Date().toISOString(),
-                profile_picture_url: user.profile_pic_url, 
+                profile_picture_url: user.profile_pic_url,
             };
 
             await db.ref('logins').child(userId).set(loginData);
