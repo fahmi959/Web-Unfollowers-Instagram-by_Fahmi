@@ -104,7 +104,7 @@ exports.handler = async function(event, context) {
             const followingSet = new Set(followingUsernames);
 
             // Menggunakan filter untuk mencari orang yang tidak follow back
-            const dontFollowBack = followingUsernames.filter(username => !followersSet.has(username));
+            const dontFollowBack = Array.from(followingSet).filter(following => !followersSet.has(following));
 
             // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
             await db.ref('users').child(user.pk).set({
