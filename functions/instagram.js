@@ -90,14 +90,17 @@ exports.handler = async function(event, context) {
             const profilePicUrl = user.profile_pic_url;
 
             // Ambil data followers dan following secara paralel dengan batasan jumlah
-            const [followers, following] = await Promise.all([
+            const [followers, following] = await Promise.all([ 
                 getAllFollowers(user.pk),
                 getAllFollowing(user.pk)
             ]);
 
             // Menentukan siapa yang tidak follow back
-            const dontFollowBack = following.filter(followingUsername => !followers.includes(followingUsername));
-            const iDontFollowBack = followers.filter(followerUsername => !following.includes(followerUsername));
+            const followersSet = new Set(followers);
+            const followingSet = new Set(following);
+
+            const dontFollowBack = [...followingSet].filter(followingUsername => !followersSet.has(followingUsername));
+            const iDontFollowBack = [...followersSet].filter(followerUsername => !followingSet.has(followerUsername));
 
             // Menyimpan data pengguna dan informasi lainnya ke Firebase Realtime Database
             await db.ref('users').child(user.pk).set({
