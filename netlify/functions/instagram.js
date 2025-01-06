@@ -1,14 +1,12 @@
 const { IgApiClient } = require('instagram-private-api');
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 const axios = require('axios');
-const db = require(path.resolve(__dirname, '../config/firebaseConfig'));
-
+const { db, storage } = require(path.resolve(__dirname, '../config/firebaseConfig')); // Firebase config
 
 const ig = new IgApiClient();
 
-// Variabel sesi yang disimpan dalam memori
+// Variabel sesi yang disimpan dalam Firebase
 let sessionData = null;
 
 // Fungsi untuk login ke Instagram
@@ -17,7 +15,7 @@ const login = async () => {
 
     if (sessionData) {
         ig.state.deserialize(sessionData);
-        console.log('Sesi ditemukan di memori, melanjutkan...');
+        console.log('Sesi ditemukan di Firebase, melanjutkan...');
         try {
             await ig.account.currentUser();
             console.log('Sesi valid, melanjutkan...');
@@ -26,47 +24,31 @@ const login = async () => {
             await forceLogin();
         }
     } else {
-        console.log('Sesi tidak ditemukan di memori, login ulang...');
+        console.log('Sesi tidak ditemukan di Firebase, login ulang...');
         await forceLogin();
     }
 };
 
-// Fungsi untuk login ulang dan menyimpan sesi baru di memori
+// Fungsi untuk login ulang dan menyimpan sesi baru di Firebase
 const forceLogin = async () => {
     try {
         console.log('Mencoba login...');
         await ig.account.login(process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
         console.log('Login berhasil!');
-        sessionData = ig.state.serialize(); // Menyimpan sesi di memori
+        sessionData = ig.state.serialize(); // Menyimpan sesi di Firebase
+        await db.ref('sessions').child(process.env.INSTAGRAM_USERNAME).set({ sessionData }); // Menyimpan sesi di Firebase
     } catch (error) {
         console.error('Login gagal:', error);
         if (error.name === 'IgCheckpointError') {
-            const code = await promptFor2FACode();
-            await ig.account.confirmTwoFactorCode(code);
-            sessionData = ig.state.serialize(); // Menyimpan sesi setelah 2FA berhasil
+            // Tanpa readline, sebaiknya return respons 2FA kepada pengguna
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ message: 'Instagram needs 2FA verification.' }),
+            };
         } else {
             throw error;
         }
     }
-};
-
-// Fungsi untuk meminta input kode 2FA
-const promptFor2FACode = () => {
-    return new Promise((resolve, reject) => {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        rl.question('Enter 2FA code: ', (code) => {
-            rl.close();
-            resolve(code);
-        });
-    });
-};
-
-// Fungsi untuk menunggu (delay) dalam milidetik
-const delay = (ms) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 // Fungsi untuk mengambil followers dengan paginasi
@@ -116,40 +98,58 @@ exports.handler = async function(event, context) {
 
             // Mendapatkan gambar profil
             const profilePicUrl = user.profile_pic_url;
-            const imagePath = path.resolve(__dirname, '../public/my_profile.jpg');
 
-            // Mengunduh gambar profil
-            const writer = fs.createWriteStream(imagePath);
+            // Mengunduh gambar profil dan menyimpannya ke Firebase Storage
+            const fileName = `profile_pics/${user.username}.jpg`;
+            const file = storage.file(fileName);
+
+            const writeStream = file.createWriteStream();
             const response = await axios.get(profilePicUrl, { responseType: 'stream' });
+            response.data.pipe(writeStream);
 
-            response.data.pipe(writer);
-            writer.on('finish', () => {
-                console.log('Gambar profil telah disimpan.');
-            });
+            writeStream.on('finish', async () => {
+                console.log('Gambar profil telah disimpan ke Firebase Storage.');
 
-            // Ambil data followers dan following
-            const followers = await getAllFollowers(user.pk);
-            const following = await getAllFollowing(user.pk);
+                // Simpan URL gambar profil di Realtime Database
+                const profilePicUrlInStorage = `https://storage.googleapis.com/${storage.name}/${fileName}`;
 
-            const followersUsernames = followers.map(f => f.username);
-            const followingUsernames = following.map(f => f.username);
+                // Ambil data followers dan following
+                const followers = await getAllFollowers(user.pk);
+                const following = await getAllFollowing(user.pk);
 
-            // Cari orang yang tidak follow back
-            const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
+                const followersUsernames = followers.map(f => f.username);
+                const followingUsernames = following.map(f => f.username);
 
-            return {
-                statusCode: 200,
-                body: JSON.stringify({
+                // Cari orang yang tidak follow back
+                const dontFollowBack = followingUsernames.filter(username => !followersUsernames.includes(username));
+
+                // Menyimpan data pengguna dan informasi lainnya ke Realtime Database
+                await db.ref('users').child(user.pk).set({
                     username: user.username,
                     full_name: user.full_name,
                     biography: user.biography,
                     followers_count: followersCount,
                     following_count: followingCount,
-                    profile_picture_url: '/my_profile.jpg',
+                    profile_picture_url: profilePicUrlInStorage,
                     dont_follow_back: dontFollowBack,
                     dont_follow_back_count: dontFollowBack.length,
-                }),
-            };
+                });
+
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({
+                        username: user.username,
+                        full_name: user.full_name,
+                        biography: user.biography,
+                        followers_count: followersCount,
+                        following_count: followingCount,
+                        profile_picture_url: profilePicUrlInStorage,
+                        dont_follow_back: dontFollowBack,
+                        dont_follow_back_count: dontFollowBack.length,
+                    }),
+                };
+            });
+
         } catch (error) {
             console.error(error);
             if (error.name === 'IgLoginRequiredError') {
