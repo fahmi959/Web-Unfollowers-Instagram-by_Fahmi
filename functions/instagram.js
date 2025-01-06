@@ -47,58 +47,42 @@ const forceLogin = async () => {
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Fungsi untuk mengambil data followers dalam batch
-const getFollowersUsernames = async (userId, retries = 3) => {
+const getFollowersUsernames = async (userId) => {
     let followersUsernames = [];
     let followersFeed = ig.feed.accountFollowers(userId);
-    let attempt = 0;
 
     while (followersFeed.isMoreAvailable()) {
         try {
             let nextFollowers = await followersFeed.items();
             followersUsernames = followersUsernames.concat(nextFollowers.map(f => f.username));
-            attempt = 0;
             // Mengatur delay acak antara 15 - 30 detik
             const delayTime = Math.random() * (30000 - 15000) + 15000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
-            await delay(delayTime); 
+            await delay(delayTime);
         } catch (error) {
             console.error('Error fetching followers:', error);
-            if (attempt < retries) {
-                attempt++;
-                console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000);
-            } else {
-                throw new Error('Failed to fetch followers after multiple retries.');
-            }
+            throw new Error('Failed to fetch followers.');
         }
     }
     return followersUsernames;
 };
 
 // Fungsi untuk mengambil data following dalam batch
-const getFollowingUsernames = async (userId, retries = 3) => {
+const getFollowingUsernames = async (userId) => {
     let followingUsernames = [];
     let followingFeed = ig.feed.accountFollowing(userId);
-    let attempt = 0;
 
     while (followingFeed.isMoreAvailable()) {
         try {
             let nextFollowing = await followingFeed.items();
             followingUsernames = followingUsernames.concat(nextFollowing.map(f => f.username));
-            attempt = 0;
             // Mengatur delay acak antara 15 - 30 detik
             const delayTime = Math.random() * (30000 - 15000) + 15000;
             console.log(`Menunggu ${delayTime}ms untuk menghindari deteksi spam...`);
-            await delay(delayTime); 
+            await delay(delayTime);
         } catch (error) {
             console.error('Error fetching following:', error);
-            if (attempt < retries) {
-                attempt++;
-                console.log(`Retrying attempt ${attempt}...`);
-                await delay(5000); 
-            } else {
-                throw new Error('Failed to fetch following after multiple retries.');
-            }
+            throw new Error('Failed to fetch following.');
         }
     }
     return followingUsernames;
